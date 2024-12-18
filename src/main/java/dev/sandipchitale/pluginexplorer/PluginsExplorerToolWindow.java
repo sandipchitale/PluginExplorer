@@ -1,5 +1,6 @@
 package dev.sandipchitale.pluginexplorer;
 
+import com.google.gson.Gson;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
@@ -19,11 +20,14 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Vector;
+import java.util.*;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private final Project project;
@@ -33,6 +37,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int DESCRIPTOR_COLUMN = -1;
     private static int index = 0;
     private static final int NAME_COLUMN = index++;
+    private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
     private static final int ENABLED_COLUMN = index++;
@@ -47,6 +52,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     static {
         COLUMNS[NAME_COLUMN] = "Name";
         COLUMNS[ID_COLUMN] = "Id";
+        COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
         COLUMNS[ENABLED_COLUMN] = "";
         COLUMNS[VENDOR_COLUMN] = "Vendor";
@@ -56,6 +62,13 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[PATH_COLUMN] = "Path";
     }
 
+    private record PluginRecord(String value, String url, String organization, String target) {
+    }
+
+    ;
+
+    Map<String, PluginRecord> pluginToPluginRecordMap = new HashMap<>();
+
     public PluginsExplorerToolWindow(@NotNull Project project) {
         super(true, true);
         this.project = project;
@@ -64,7 +77,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             @Override
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) return IdeaPluginDescriptor.class;
-                if (columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN) return Icon.class;
+                if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN)
+                    return Icon.class;
                 return String.class;
             }
 
@@ -75,6 +89,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == DESCRIPTOR_COLUMN) return ideaPluginDescriptor;
                 if (column == NAME_COLUMN) return ideaPluginDescriptor.getName();
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
+                if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
                 if (column == ENABLED_COLUMN)
                     return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
@@ -98,6 +113,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
                     if (description != null) return description;
+                } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
+                    return "Alt double-click to open Plugin page on JetBrains Marketplace";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
                 } else if (column == OPEN_PATH_COLUMN) {
@@ -110,17 +127,60 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent mouseEvent) {
-                if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2 ) {
+                if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_PATH_COLUMN) {
+                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == OPEN_PATH_COLUMN) {
+                        Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
-                        Path pluginPath = ideaPluginDescriptor.getPluginPath();
-                        if (pluginPath != null && pluginPath.toFile().exists()) {
-                            try {
-                                Desktop.getDesktop().open(pluginPath.toFile());
-                            } catch (IOException ignore) {
+                        if (column == OPEN_ON_MARKETPLACE_COLUMN) {
+                            String pluginName = ideaPluginDescriptor.getName();
+                            PluginRecord pluginRecord = pluginToPluginRecordMap.computeIfAbsent(pluginName, (String n) -> {
+                                try {
+                                    URI uri = URI.create(
+                                            String.format("https://plugins.jetbrains.com/api/searchSuggest?isIDERequest=false&term=%s",
+                                                    URLEncoder.encode(pluginName, StandardCharsets.UTF_8)));
+                                    // Create an HTTP client
+                                    HttpClient httpClient = HttpClient.newHttpClient();
+                                    HttpRequest request = HttpRequest.newBuilder()
+                                            .uri(uri)
+                                            .GET()
+                                            .build();
+
+                                    // Send the request and get the response
+                                    HttpResponse<String> response = null;
+                                    response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                                    // Parse the JSON response using Gson
+                                    Gson gson = new Gson();
+                                    PluginRecord[] pluginRecords = gson.fromJson(response.body(), PluginRecord[].class);
+
+                                    for (PluginRecord pr : pluginRecords) {
+                                        if (pluginName.equals(pr.value())) {
+                                            return pr;
+                                        }
+                                    }
+                                    // https://plugins.jetbrains.com/plugin/22006-start-spring-boot-project
+                                    // desktop.browse(uri);
+                                } catch (IOException | InterruptedException ignore) {
+                                }
+                                return null;
+                            });
+                            if (pluginRecord != null) {
+                                try {
+                                    URI uri = URI.create(
+                                            String.format("https://plugins.jetbrains.com%s", pluginRecord.url()));
+                                    desktop.browse(uri);
+                                } catch (IOException ignore) {
+                                }
+                            }
+                        } else {
+                            Path pluginPath = ideaPluginDescriptor.getPluginPath();
+                            if (pluginPath != null && pluginPath.toFile().exists()) {
+                                try {
+                                    desktop.open(pluginPath.toFile());
+                                } catch (IOException ignore) {
+                                }
                             }
                         }
                     }
@@ -135,6 +195,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //        column.setMinWidth(250);
         column.setWidth(250);
 //        column.setMaxWidth(250);
+
+        column = this.pluginsTable.getColumnModel().getColumn(OPEN_ON_MARKETPLACE_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
 
         column = this.pluginsTable.getColumnModel().getColumn(ID_COLUMN);
 //        column.setMinWidth(250);

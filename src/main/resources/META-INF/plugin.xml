@@ -24,7 +24,9 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>First release</li>
+            <li>Refresh</li>
+            <li>Open plugin path in File manager</li>
+            <li>Oen plugin's JetBrains Marketplace page in browser</li>
         </ul>
         <h2>Features</h2>
         <ul>
