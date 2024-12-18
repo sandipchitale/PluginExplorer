@@ -3,8 +3,11 @@ package dev.sandipchitale.pluginexplorer;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
+import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.openapi.wm.ex.ToolWindowEx;
 import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
@@ -13,9 +16,13 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.Vector;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
@@ -30,8 +37,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int VERSION_COLUMN = index++;
     private static final int ENABLED_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
-//    private static final int SINCE_COLUMN = index++;
+    //    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
+    private static final int OPEN_PATH_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
 
     private static String[] COLUMNS = new String[index];
@@ -44,6 +52,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[VENDOR_COLUMN] = "Vendor";
 //        COLUMNS[SINCE_COLUMN] = "Since";
 //        COLUMNS[UNTIL_COLUMN] = "Until";
+        COLUMNS[OPEN_PATH_COLUMN] = "";
         COLUMNS[PATH_COLUMN] = "Path";
     }
 
@@ -54,8 +63,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex ==  DESCRIPTOR_COLUMN) return IdeaPluginDescriptor.class;
-                if (columnIndex == ENABLED_COLUMN) return Icon.class;
+                if (columnIndex == DESCRIPTOR_COLUMN) return IdeaPluginDescriptor.class;
+                if (columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN) return Icon.class;
                 return String.class;
             }
 
@@ -67,11 +76,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == NAME_COLUMN) return ideaPluginDescriptor.getName();
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
-                if (column == ENABLED_COLUMN) return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
+                if (column == ENABLED_COLUMN)
+                    return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
                 if (column == VENDOR_COLUMN) return ideaPluginDescriptor.getVendor();
 //                if (column == SINCE_COLUMN) return ideaPluginDescriptor.getSinceBuild();
 //                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
-                if (column == PATH_COLUMN) return ideaPluginDescriptor.getPluginPath().toString().replace(System.getProperty("user.home"), "~");
+                if (column == OPEN_PATH_COLUMN) return AllIcons.Actions.MenuOpen;
+                if (column == PATH_COLUMN)
+                    return ideaPluginDescriptor.getPluginPath().toString().replace(System.getProperty("user.home"), "~");
                 return "";
             }
         };
@@ -85,13 +97,37 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
-                    if (description !=null) return description;
+                    if (description != null) return description;
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
+                } else if (column == OPEN_PATH_COLUMN) {
+                    return "Alt double-click to open Plugin Path";
                 }
                 return super.getToolTipText(event);
             }
         };
+
+        pluginsTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent mouseEvent) {
+                if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2 ) {
+                    Point p = mouseEvent.getPoint();
+                    int column = pluginsTable.columnAtPoint(p);
+                    if (column == OPEN_PATH_COLUMN) {
+                        int row = pluginsTable.rowAtPoint(p);
+                        IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
+                        Path pluginPath = ideaPluginDescriptor.getPluginPath();
+                        if (pluginPath != null && pluginPath.toFile().exists()) {
+                            try {
+                                Desktop.getDesktop().open(pluginPath.toFile());
+                            } catch (IOException ignore) {
+                            }
+                        }
+                    }
+                }
+
+            }
+        });
 
         TableColumn column;
 
@@ -111,26 +147,32 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMaxWidth(180);
 
         column = this.pluginsTable.getColumnModel().getColumn(ENABLED_COLUMN);
-        column.setMinWidth(70);
-        column.setWidth(70);
-        column.setMaxWidth(70);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
 
         column = this.pluginsTable.getColumnModel().getColumn(VENDOR_COLUMN);
         column.setMinWidth(180);
         column.setWidth(180);
         column.setMaxWidth(180);
 
+        column = this.pluginsTable.getColumnModel().getColumn(OPEN_PATH_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
+
         setContent(ScrollPaneFactory.createScrollPane(pluginsTable));
 
-//        final ActionManager actionManager = ActionManager.getInstance();
-//        ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
-//        PluginsGetAction pluginsGetAction = (PluginsGetAction) actionManager.getAction("PluginsGet");
-//        pluginsGetAction.setPluginsExplorerToolWindow(this);
-//        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(pluginsGetAction));
+        final ActionManager actionManager = ActionManager.getInstance();
+        ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
+        RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
+        refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
+        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(refreshPluginsExplorerAction));
+
         refresh();
     }
 
-    private void refresh() {
+    void refresh() {
         pluginsTableModel.setRowCount(0);
         IdeaPluginDescriptor[] plugins = PluginManagerCore.getPlugins();
         Arrays.sort(plugins, Comparator.comparing(IdeaPluginDescriptor::getName));

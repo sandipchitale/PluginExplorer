@@ -56,4 +56,10 @@
                 displayType="BALLOON"
         />
     </extensions>
+    <actions>
+    <action id="RefreshPluginsExplorer" class="dev.sandipchitale.pluginexplorer.RefreshPluginsExplorerAction"
+            description="Refresh"
+            icon="AllIcons.Actions.Refresh">
+    </action>
+    </actions>
 </idea-plugin>
