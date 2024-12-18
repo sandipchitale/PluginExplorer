@@ -98,6 +98,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
                 if (column == OPEN_PATH_COLUMN) return AllIcons.Actions.MenuOpen;
                 if (column == PATH_COLUMN)
+
                     return ideaPluginDescriptor.getPluginPath().toString().replace(System.getProperty("user.home"), "~");
                 return "";
             }
@@ -114,7 +115,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     String description = ideaPluginDescriptor.getDescription();
                     if (description != null) return description;
                 } else if (column == VERSION_COLUMN) {
-                    return String.format("Since Build: %s - Until Build: %s", ideaPluginDescriptor.getSinceBuild(), ideaPluginDescriptor.getUntilBuild());
+                    String sinceBuild = ideaPluginDescriptor.getSinceBuild();
+                    String untilBuild = ideaPluginDescriptor.getUntilBuild();
+                    return String.format("Since Build: %s - Until Build: %s",
+                            Objects.requireNonNullElse(sinceBuild,"N/A"),
+                            Objects.requireNonNullElse(untilBuild, "N/A"));
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                     return "Alt double-click to open Plugin page on JetBrains Marketplace";
                 } else if (column == ENABLED_COLUMN) {
