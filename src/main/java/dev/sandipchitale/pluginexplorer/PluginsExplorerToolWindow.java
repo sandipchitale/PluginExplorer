@@ -3,6 +3,7 @@ package dev.sandipchitale.pluginexplorer;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.intellij.icons.AllIcons;
+import com.intellij.ide.plugins.IdeaPluginDependency;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.actionSystem.ActionManager;
@@ -11,8 +12,10 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.openapi.wm.WindowManager;
 import com.intellij.openapi.wm.ex.ToolWindowEx;
 import com.intellij.ui.ScrollPaneFactory;
+import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.table.JBTable;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,6 +33,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -50,6 +54,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
+    private static final int DEPENDENCIES_COLUMN = index++;
     private static final int SOURCECODE_URI_COLUMN = index++;
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
@@ -66,6 +71,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
+        COLUMNS[DEPENDENCIES_COLUMN] = "";
         COLUMNS[SOURCECODE_URI_COLUMN] = "";
         COLUMNS[ENABLED_COLUMN] = "";
         COLUMNS[CATEGORY_COLUMN] = "Category";
@@ -94,7 +100,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             @Override
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) return IdeaPluginDescriptor.class;
-                if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN)
+                if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == DEPENDENCIES_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN)
                     return Icon.class;
                 return String.class;
             }
@@ -108,6 +114,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
+                if (column == DEPENDENCIES_COLUMN) return AllIcons.Toolwindows.ToolWindowModuleDependencies;
                 if (column == SOURCECODE_URI_COLUMN) return AllIcons.Actions.PrettyPrint;
                 if (column == ENABLED_COLUMN)
                     return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
@@ -139,6 +146,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return String.format("Since Build: %s - Until Build: %s",
                             Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
+                } else if (column == DEPENDENCIES_COLUMN) {
+                    return "Dependencies";
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                     return "Alt double-click to open Plugin page on JetBrains Marketplace";
                 } else if (column == SOURCECODE_URI_COLUMN) {
@@ -158,7 +167,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == SOURCECODE_URI_COLUMN || column == OPEN_PATH_COLUMN) {
+                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == DEPENDENCIES_COLUMN || column == SOURCECODE_URI_COLUMN || column == OPEN_PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
@@ -173,6 +182,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 } catch (IOException ignore) {
                                 }
                             }
+                        } else if (column == DEPENDENCIES_COLUMN) {
+                            StringBuilder stringBuilder = new StringBuilder();
+                            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
+                            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
+                                stringBuilder.append(String.format("PluginID: %-50s Optional: %s\n", ideaPluginDescriptorDependency.getPluginId(), ideaPluginDescriptorDependency.isOptional()));
+                            }
+                            JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
+                                    new JScrollPane(new JBTextArea(stringBuilder.toString(), 20, 80)),
+                                    "Dependencies",
+                                    JOptionPane.PLAIN_MESSAGE);
                         } else if (column == SOURCECODE_URI_COLUMN) {
                             @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
                             PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
@@ -222,6 +241,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setWidth(180);
         column.setMaxWidth(180);
 
+        column = this.pluginsTable.getColumnModel().getColumn(DEPENDENCIES_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
 
         column = this.pluginsTable.getColumnModel().getColumn(SOURCECODE_URI_COLUMN);
         column.setMinWidth(40);
@@ -331,10 +354,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             }
         }, "Plugin Nodes").start();
 
-        for (IdeaPluginDescriptor plugin : ideaPluginDescriptors) {
-            String idString = plugin.getPluginId().getIdString();
+        for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
+//            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
+//            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
+//                System.out.println("Plugin: " + ideaPluginDescriptor.getPluginId() + "depends on Plugin ID: " + ideaPluginDescriptorDependency.getPluginId() + " Optional: " + ideaPluginDescriptorDependency.isOptional());
+//            }
+            String idString = ideaPluginDescriptor.getPluginId().getIdString();
             if (!idString.isEmpty()) {
-                pluginsTableModel.addRow(new IdeaPluginDescriptor[]{plugin});
+                pluginsTableModel.addRow(new IdeaPluginDescriptor[]{ideaPluginDescriptor});
             }
         }
     }
