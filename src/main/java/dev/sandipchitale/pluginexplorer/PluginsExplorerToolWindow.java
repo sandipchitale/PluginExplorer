@@ -1,10 +1,13 @@
 package dev.sandipchitale.pluginexplorer;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.wm.ToolWindowManager;
@@ -28,8 +31,15 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
+    private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
+
+    private static final Pattern PLUGIN_URL_PATTERN = Pattern.compile("^/plugin/(\\d+)-.+$");
+
     private final Project project;
     private final DefaultTableModel pluginsTableModel;
     private final JBTable pluginsTable;
@@ -40,7 +50,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
+    private static final int SOURCECODE_URI_COLUMN = index++;
     private static final int ENABLED_COLUMN = index++;
+    private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
     //    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
@@ -54,7 +66,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
+        COLUMNS[SOURCECODE_URI_COLUMN] = "";
         COLUMNS[ENABLED_COLUMN] = "";
+        COLUMNS[CATEGORY_COLUMN] = "Category";
         COLUMNS[VENDOR_COLUMN] = "Vendor";
 //        COLUMNS[SINCE_COLUMN] = "Since";
 //        COLUMNS[UNTIL_COLUMN] = "Until";
@@ -62,22 +76,25 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[PATH_COLUMN] = "Path";
     }
 
-    private record PluginRecord(String value, String url, String organization, String target) {
+    private final Gson gson;
+
+    private record PluginRecord(String value, String url, String organization, String target, String sourceCodeURI) {
     }
 
-    ;
-
-    Map<String, PluginRecord> pluginToPluginRecordMap = new HashMap<>();
+    Map<PluginId, PluginRecord> pluginIdToPluginRecordMap = new ConcurrentHashMap<>();
 
     public PluginsExplorerToolWindow(@NotNull Project project) {
         super(true, true);
         this.project = project;
+
+        gson = new Gson();
+
         pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
 
             @Override
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) return IdeaPluginDescriptor.class;
-                if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN)
+                if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN)
                     return Icon.class;
                 return String.class;
             }
@@ -91,8 +108,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
+                if (column == SOURCECODE_URI_COLUMN) return AllIcons.Actions.PrettyPrint;
                 if (column == ENABLED_COLUMN)
                     return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
+                if (column == CATEGORY_COLUMN) return ideaPluginDescriptor.getDisplayCategory();
                 if (column == VENDOR_COLUMN) return ideaPluginDescriptor.getVendor();
 //                if (column == SINCE_COLUMN) return ideaPluginDescriptor.getSinceBuild();
 //                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
@@ -118,10 +137,12 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     String sinceBuild = ideaPluginDescriptor.getSinceBuild();
                     String untilBuild = ideaPluginDescriptor.getUntilBuild();
                     return String.format("Since Build: %s - Until Build: %s",
-                            Objects.requireNonNullElse(sinceBuild,"N/A"),
+                            Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                     return "Alt double-click to open Plugin page on JetBrains Marketplace";
+                } else if (column == SOURCECODE_URI_COLUMN) {
+                    return "Go to source code URI if available.";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
                 } else if (column == OPEN_PATH_COLUMN) {
@@ -137,47 +158,30 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == OPEN_PATH_COLUMN) {
+                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == SOURCECODE_URI_COLUMN || column == OPEN_PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                         if (column == OPEN_ON_MARKETPLACE_COLUMN) {
-                            String pluginName = ideaPluginDescriptor.getName();
-                            PluginRecord pluginRecord = pluginToPluginRecordMap.computeIfAbsent(pluginName, (String n) -> {
-                                try {
-                                    URI uri = URI.create(
-                                            String.format("https://plugins.jetbrains.com/api/searchSuggest?isIDERequest=false&term=%s",
-                                                    URLEncoder.encode(pluginName, StandardCharsets.UTF_8)));
-                                    // Create an HTTP client
-                                    HttpClient httpClient = HttpClient.newHttpClient();
-                                    HttpRequest request = HttpRequest.newBuilder()
-                                            .uri(uri)
-                                            .GET()
-                                            .build();
-
-                                    // Send the request and get the response
-                                    HttpResponse<String> response = null;
-                                    response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                                    // Parse the JSON response using Gson
-                                    Gson gson = new Gson();
-                                    PluginRecord[] pluginRecords = gson.fromJson(response.body(), PluginRecord[].class);
-
-                                    for (PluginRecord pr : pluginRecords) {
-                                        if (pluginName.equals(pr.value())) {
-                                            return pr;
-                                        }
-                                    }
-                                    // https://plugins.jetbrains.com/plugin/22006-start-spring-boot-project
-                                    // desktop.browse(uri);
-                                } catch (IOException | InterruptedException ignore) {
-                                }
-                                return null;
-                            });
+                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                            PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(pluginId);
                             if (pluginRecord != null) {
                                 try {
                                     URI uri = URI.create(
                                             String.format("https://plugins.jetbrains.com%s", pluginRecord.url()));
                                     desktop.browse(uri);
+                                } catch (IOException ignore) {
+                                }
+                            }
+                        } else if (column == SOURCECODE_URI_COLUMN) {
+                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
+                            if (pluginNode != null) {
+                                try {
+                                    String sourceCodeUrl = pluginNode.sourceCodeURI();
+                                    if (sourceCodeUrl != null && !sourceCodeUrl.isEmpty()) {
+                                        desktop.browse(URI.create(sourceCodeUrl));
+                                    }
                                 } catch (IOException ignore) {
                                 }
                             }
@@ -218,10 +222,22 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setWidth(180);
         column.setMaxWidth(180);
 
+
+        column = this.pluginsTable.getColumnModel().getColumn(SOURCECODE_URI_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
+
         column = this.pluginsTable.getColumnModel().getColumn(ENABLED_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+
+
+        column = this.pluginsTable.getColumnModel().getColumn(CATEGORY_COLUMN);
+        column.setMinWidth(200);
+        column.setWidth(200);
+        column.setMaxWidth(200);
 
         column = this.pluginsTable.getColumnModel().getColumn(VENDOR_COLUMN);
         column.setMinWidth(180);
@@ -245,10 +261,77 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     }
 
     void refresh() {
+        pluginIdToPluginRecordMap.clear();
         pluginsTableModel.setRowCount(0);
-        IdeaPluginDescriptor[] plugins = PluginManagerCore.getPlugins();
-        Arrays.sort(plugins, Comparator.comparing(IdeaPluginDescriptor::getName));
-        for (IdeaPluginDescriptor plugin : plugins) {
+        IdeaPluginDescriptor[] ideaPluginDescriptors = PluginManagerCore.getPlugins();
+        Arrays.sort(ideaPluginDescriptors, Comparator.comparing(IdeaPluginDescriptor::getName));
+
+        new Thread(() -> {
+            for (int i = 0; i < 2; i++) {
+                for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
+                    if (i == 0 && "JetBrains".equals(ideaPluginDescriptor.getVendor()))
+                        continue; // Skip JetBrains in first loop
+                    if (i == 1 && (!"JetBrains".equals(ideaPluginDescriptor.getVendor())))
+                        continue; // Process JetBrains in sec ond loop
+                    PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                    String pluginName = ideaPluginDescriptor.getName();
+                    try {
+                        URI uri = URI.create(
+                                String.format("https://plugins.jetbrains.com/api/searchSuggest?isIDERequest=false&term=%s",
+                                        URLEncoder.encode(pluginName, StandardCharsets.UTF_8)));
+                        // Create an HTTP client
+                        HttpClient httpClient = HttpClient.newHttpClient();
+                        HttpRequest request = HttpRequest.newBuilder()
+                                .uri(uri)
+                                .GET()
+                                .build();
+
+                        // Send the request and get the response
+                        HttpResponse<String> response = null;
+                        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                        // Parse the JSON response using Gson
+
+                        PluginRecord[] pluginRecords = gson.fromJson(response.body(), PluginRecord[].class);
+
+                        for (PluginRecord pr : pluginRecords) {
+                            if (pluginName.equals(pr.value())) {
+                                pluginIdToPluginRecordMap.put(pluginId, pr);
+                                String url = pr.url();
+                                Matcher matcher = PLUGIN_URL_PATTERN.matcher(url);
+                                if (matcher.matches()) {
+                                    new Thread(() -> {
+                                        // https://plugins.jetbrains.com/api/plugins/22006
+                                        URI pluginUri = URI.create(String.format("https://plugins.jetbrains.com/api/plugins/%s", matcher.group(1)));
+                                        // Create an HTTP client
+                                        HttpRequest pluginRequest = HttpRequest.newBuilder()
+                                                .uri(pluginUri)
+                                                .GET()
+                                                .build();
+
+                                        // Send the request and get the response
+                                        try {
+                                            HttpResponse<String> pluginResponse = httpClient.send(pluginRequest, HttpResponse.BodyHandlers.ofString());
+                                            String body = pluginResponse.body();
+                                            JsonObject jsonObject = gson.fromJson(body, JsonObject.class);
+                                            if (jsonObject != null) {
+                                                PluginRecord pluginRecord = new PluginRecord(pr.value(), pr.url(), pr.organization, pr.target, jsonObject.getAsJsonObject("urls").getAsJsonPrimitive("sourceCodeUrl").getAsString());
+                                                pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
+                                            }
+                                        } catch (IOException | InterruptedException ignore) {
+                                        }
+                                    }, "Plugin Node details").start();
+
+                                }
+                                break;
+                            }
+                        }
+                    } catch (IOException | InterruptedException ignore) {
+                    }
+                }
+            }
+        }, "Plugin Nodes").start();
+
+        for (IdeaPluginDescriptor plugin : ideaPluginDescriptors) {
             String idString = plugin.getPluginId().getIdString();
             if (!idString.isEmpty()) {
                 pluginsTableModel.addRow(new IdeaPluginDescriptor[]{plugin});
@@ -256,3 +339,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         }
     }
 }
+
+/*
+if ("JetBrains".equals(ideaPluginDescriptor.getVendor())) continue; // Skip JetBrains
+                PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                PluginNode pluginNode = MarketplaceRequests.getInstance().getLastCompatiblePluginUpdate(pluginId);
+                if (pluginNode != null) {
+                    pluginIdToPluginNodeMap.put(pluginId, pluginNode);
+                    new Thread(() -> {
+                        PluginNode pluginNodeDetails = MarketplaceRequests.getInstance().loadPluginDetails(pluginNode);
+                        if (pluginNodeDetails != null) {
+                            LOG.info(String.format("Name: %s - Sources: %s", pluginNodeDetails.getName(), pluginNodeDetails.getSourceCodeUrl()));
+                            pluginIdToPluginNodeMap.put(pluginId, pluginNodeDetails);
+                        }
+                    }, "Plugin Node details").start();
+                }
+ */
