@@ -63,7 +63,7 @@
         <action id="GotoPlugins"
                 class="dev.sandipchitale.pluginexplorer.GotoPluginsAction"
                 description="Goto plugins"
-                icon="AllIcons.General.GearPlain">
+                icon="AllIcons.Nodes.Plugin">
         </action>
         <action id="RefreshPluginsExplorer"
                 class="dev.sandipchitale.pluginexplorer.RefreshPluginsExplorerAction"
