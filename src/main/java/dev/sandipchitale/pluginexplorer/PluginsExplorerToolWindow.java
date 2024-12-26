@@ -1,6 +1,7 @@
 package dev.sandipchitale.pluginexplorer;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDependency;
@@ -62,6 +63,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int VENDOR_COLUMN = index++;
     //    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
+    private static final int INFO_COLUMN = index++;
     private static final int OPEN_PATH_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
 
@@ -80,13 +82,15 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[VENDOR_COLUMN] = "Vendor";
 //        COLUMNS[SINCE_COLUMN] = "Since";
 //        COLUMNS[UNTIL_COLUMN] = "Until";
+        COLUMNS[INFO_COLUMN] = "";
         COLUMNS[OPEN_PATH_COLUMN] = "";
         COLUMNS[PATH_COLUMN] = "Path";
     }
 
     private final Gson gson;
 
-    private record PluginRecord(String value, String url, String organization, String target, String sourceCodeURI, int downloads) {
+    private record PluginRecord(String value, String url, String organization, String target, String sourceCodeURI,
+                                int downloads, String information) {
     }
 
     Map<PluginId, PluginRecord> pluginIdToPluginRecordMap = new ConcurrentHashMap<>();
@@ -95,7 +99,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         super(true, true);
         this.project = project;
 
-        gson = new Gson();
+        gson = new GsonBuilder().setPrettyPrinting().create();
 
         pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
 
@@ -103,7 +107,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
-                } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == DOWNLOADS_COLUMN || columnIndex == DEPENDENCIES_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == OPEN_PATH_COLUMN) {
+                } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == DOWNLOADS_COLUMN || columnIndex == DEPENDENCIES_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == INFO_COLUMN || columnIndex == OPEN_PATH_COLUMN) {
                     return Icon.class;
                 }
                 return String.class;
@@ -127,6 +131,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == VENDOR_COLUMN) return ideaPluginDescriptor.getVendor();
 //                if (column == SINCE_COLUMN) return ideaPluginDescriptor.getSinceBuild();
 //                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
+                if (column == INFO_COLUMN) return AllIcons.General.Information;
                 if (column == OPEN_PATH_COLUMN) return AllIcons.Actions.MenuOpen;
                 if (column == PATH_COLUMN)
 
@@ -165,6 +170,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return "Go to source code URI if available.";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
+                } else if (column == INFO_COLUMN) {
+                    return "Alt double-click to see raw information";
                 } else if (column == OPEN_PATH_COLUMN) {
                     return "Alt double-click to open Plugin Path";
                 }
@@ -178,7 +185,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == DEPENDENCIES_COLUMN || column == SOURCECODE_URI_COLUMN || column == OPEN_PATH_COLUMN) {
+                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == DEPENDENCIES_COLUMN || column == SOURCECODE_URI_COLUMN || column == INFO_COLUMN || column == OPEN_PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
@@ -214,6 +221,15 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                     }
                                 } catch (IOException ignore) {
                                 }
+                            }
+                        } else if (column == INFO_COLUMN) {
+                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
+                            if (pluginNode != null) {
+                                JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
+                                        new JScrollPane(new JBTextArea(pluginNode.information(), 20, 120)),
+                                        "Raw Information",
+                                        JOptionPane.INFORMATION_MESSAGE);
                             }
                         } else {
                             Path pluginPath = ideaPluginDescriptor.getPluginPath();
@@ -281,6 +297,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMinWidth(180);
         column.setWidth(180);
         column.setMaxWidth(180);
+
+        column = this.pluginsTable.getColumnModel().getColumn(INFO_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
 
         column = this.pluginsTable.getColumnModel().getColumn(OPEN_PATH_COLUMN);
         column.setMinWidth(40);
@@ -362,7 +383,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                         pr.organization,
                                                         pr.target,
                                                         jsonObject.getAsJsonObject("urls").getAsJsonPrimitive("sourceCodeUrl").getAsString(),
-                                                        jsonObject.getAsJsonPrimitive("downloads").getAsInt()
+                                                        jsonObject.getAsJsonPrimitive("downloads").getAsInt(),
+                                                        gson.toJson(jsonObject)
                                                 );
                                                 pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
                                             }
