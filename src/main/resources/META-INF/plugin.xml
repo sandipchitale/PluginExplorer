@@ -24,13 +24,13 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Refresh</li>
-            <li>Open plugin path in File manager</li>
-            <li>Oen plugin's JetBrains Marketplace page in browser</li>
+            <li>Go to Plugins page action</li>
         </ul>
         <h2>Features</h2>
         <ul>
-            <li></li>
+            <li>Refresh</li>
+            <li>Open plugin path in File manager</li>
+            <li>Oen plugin's JetBrains Marketplace page in browser</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
@@ -59,9 +59,15 @@
         />
     </extensions>
     <actions>
-    <action id="RefreshPluginsExplorer" class="dev.sandipchitale.pluginexplorer.RefreshPluginsExplorerAction"
-            description="Refresh"
-            icon="AllIcons.Actions.Refresh">
-    </action>
+        <action id="GotoPlugins"
+                class="dev.sandipchitale.pluginexplorer.GotoPluginsAction"
+                description="Goto plugins"
+                icon="AllIcons.General.GearPlain">
+        </action>
+        <action id="RefreshPluginsExplorer"
+                class="dev.sandipchitale.pluginexplorer.RefreshPluginsExplorerAction"
+                description="Refresh"
+                icon="AllIcons.Actions.Refresh">
+        </action>
     </actions>
 </idea-plugin>

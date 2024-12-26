@@ -256,7 +256,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setWidth(40);
         column.setMaxWidth(40);
 
-
         column = this.pluginsTable.getColumnModel().getColumn(CATEGORY_COLUMN);
         column.setMinWidth(200);
         column.setWidth(200);
@@ -276,9 +275,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
         final ActionManager actionManager = ActionManager.getInstance();
         ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
+
+        GotoPluginsAction gotoPlugins = (GotoPluginsAction) actionManager.getAction("GotoPlugins");
+        gotoPlugins.setPluginsExplorerToolWindow(this);
+
         RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
         refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
-        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(refreshPluginsExplorerAction));
+
+        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(gotoPlugins, refreshPluginsExplorerAction));
 
         refresh();
     }
