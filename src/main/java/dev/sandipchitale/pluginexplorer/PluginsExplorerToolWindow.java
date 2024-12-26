@@ -403,10 +403,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         }, "Plugin Nodes").start();
 
         for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
-//            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
-//            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
-//                System.out.println("Plugin: " + ideaPluginDescriptor.getPluginId() + "depends on Plugin ID: " + ideaPluginDescriptorDependency.getPluginId() + " Optional: " + ideaPluginDescriptorDependency.isOptional());
-//            }
             String idString = ideaPluginDescriptor.getPluginId().getIdString();
             if (!idString.isEmpty()) {
                 pluginsTableModel.addRow(new IdeaPluginDescriptor[]{ideaPluginDescriptor});
@@ -414,19 +410,3 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         }
     }
 }
-
-/*
-if ("JetBrains".equals(ideaPluginDescriptor.getVendor())) continue; // Skip JetBrains
-                PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                PluginNode pluginNode = MarketplaceRequests.getInstance().getLastCompatiblePluginUpdate(pluginId);
-                if (pluginNode != null) {
-                    pluginIdToPluginNodeMap.put(pluginId, pluginNode);
-                    new Thread(() -> {
-                        PluginNode pluginNodeDetails = MarketplaceRequests.getInstance().loadPluginDetails(pluginNode);
-                        if (pluginNodeDetails != null) {
-                            LOG.info(String.format("Name: %s - Sources: %s", pluginNodeDetails.getName(), pluginNodeDetails.getSourceCodeUrl()));
-                            pluginIdToPluginNodeMap.put(pluginId, pluginNodeDetails);
-                        }
-                    }, "Plugin Node details").start();
-                }
- */
