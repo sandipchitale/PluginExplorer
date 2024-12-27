@@ -63,7 +63,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int VERSION_COLUMN = index++;
     private static final int DOWNLOADS_COLUMN = index++;
     private static final int DEPENDENCIES_COLUMN = index++;
-    private static final int SOURCECODE_URI_COLUMN = index++;
+    private static final int SOURCECODE_URL_COLUMN = index++;
+    private static final int BUGTRACKER_URL_COLUMN = index++;
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
@@ -82,7 +83,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[VERSION_COLUMN] = "Version";
         COLUMNS[DOWNLOADS_COLUMN] = "";
         COLUMNS[DEPENDENCIES_COLUMN] = "";
-        COLUMNS[SOURCECODE_URI_COLUMN] = "";
+        COLUMNS[SOURCECODE_URL_COLUMN] = "";
+        COLUMNS[BUGTRACKER_URL_COLUMN] = "";
         COLUMNS[ENABLED_COLUMN] = "";
         COLUMNS[CATEGORY_COLUMN] = "Category";
         COLUMNS[VENDOR_COLUMN] = "Vendor";
@@ -95,8 +97,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     private final Gson gson;
 
-    private record PluginRecord(String value, String url, String organization, String target, String sourceCodeURI,
-                                int downloads, String information) {
+    private record PluginRecord(String value,
+                                String url,
+                                String organization,
+                                String target,
+                                String sourceCodeUrl,
+                                String bugtrackerUrl,
+                                int downloads,
+                                String information) {
     }
 
     Map<PluginId, PluginRecord> pluginIdToPluginRecordMap = new ConcurrentHashMap<>();
@@ -114,7 +122,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
-                } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN || columnIndex == DOWNLOADS_COLUMN || columnIndex == DEPENDENCIES_COLUMN || columnIndex == SOURCECODE_URI_COLUMN || columnIndex == ENABLED_COLUMN || columnIndex == INFO_COLUMN || columnIndex == OPEN_PATH_COLUMN) {
+                } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN ||
+                        columnIndex == DOWNLOADS_COLUMN ||
+                        columnIndex == DEPENDENCIES_COLUMN ||
+                        columnIndex == SOURCECODE_URL_COLUMN ||
+                        columnIndex == BUGTRACKER_URL_COLUMN ||
+                        columnIndex == ENABLED_COLUMN ||
+                        columnIndex == INFO_COLUMN ||
+                        columnIndex == OPEN_PATH_COLUMN) {
                     return Icon.class;
                 }
                 return String.class;
@@ -131,7 +146,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
                 if (column == DOWNLOADS_COLUMN) return AllIcons.Actions.Download;
                 if (column == DEPENDENCIES_COLUMN) return AllIcons.Toolwindows.ToolWindowModuleDependencies;
-                if (column == SOURCECODE_URI_COLUMN) return AllIcons.Actions.PrettyPrint;
+                if (column == SOURCECODE_URL_COLUMN) return AllIcons.Actions.PrettyPrint;
+                if (column == BUGTRACKER_URL_COLUMN) return AllIcons.Actions.StartDebugger;
                 if (column == ENABLED_COLUMN)
                     return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
                 if (column == CATEGORY_COLUMN) return ideaPluginDescriptor.getDisplayCategory();
@@ -176,8 +192,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return "Dependencies";
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                     return "Alt double-click to open Plugin page on JetBrains Marketplace";
-                } else if (column == SOURCECODE_URI_COLUMN) {
-                    return "Go to source code URI if available.";
+                } else if (column == SOURCECODE_URL_COLUMN) {
+                    return "Alt double-click to open source code URI if available.";
+                } else if (column == BUGTRACKER_URL_COLUMN) {
+                    return "Alt double-click to open bug tracker URI if available.";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
                 } else if (column == INFO_COLUMN) {
@@ -225,7 +243,12 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_ON_MARKETPLACE_COLUMN || column == DEPENDENCIES_COLUMN || column == SOURCECODE_URI_COLUMN || column == INFO_COLUMN || column == OPEN_PATH_COLUMN) {
+                    if (column == OPEN_ON_MARKETPLACE_COLUMN ||
+                            column == DEPENDENCIES_COLUMN ||
+                            column == SOURCECODE_URL_COLUMN ||
+                            column == BUGTRACKER_URL_COLUMN ||
+                            column == INFO_COLUMN ||
+                            column == OPEN_PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
@@ -250,12 +273,24 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                     new JScrollPane(new JBTextArea(stringBuilder.toString(), 20, 80)),
                                     "Dependencies",
                                     JOptionPane.PLAIN_MESSAGE);
-                        } else if (column == SOURCECODE_URI_COLUMN) {
+                        } else if (column == BUGTRACKER_URL_COLUMN) {
                             @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
                             PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
                             if (pluginNode != null) {
                                 try {
-                                    String sourceCodeUrl = pluginNode.sourceCodeURI();
+                                    String bugtrackerURI = pluginNode.bugtrackerUrl();
+                                    if (bugtrackerURI != null && !bugtrackerURI.isEmpty()) {
+                                        desktop.browse(URI.create(bugtrackerURI));
+                                    }
+                                } catch (IOException ignore) {
+                                }
+                            }
+                        }  else if (column == SOURCECODE_URL_COLUMN) {
+                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
+                            if (pluginNode != null) {
+                                try {
+                                    String sourceCodeUrl = pluginNode.sourceCodeUrl();
                                     if (sourceCodeUrl != null && !sourceCodeUrl.isEmpty()) {
                                         desktop.browse(URI.create(sourceCodeUrl));
                                     }
@@ -318,7 +353,12 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setWidth(40);
         column.setMaxWidth(40);
 
-        column = this.pluginsTable.getColumnModel().getColumn(SOURCECODE_URI_COLUMN);
+        column = this.pluginsTable.getColumnModel().getColumn(SOURCECODE_URL_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
+
+        column = this.pluginsTable.getColumnModel().getColumn(BUGTRACKER_URL_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
@@ -420,11 +460,15 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                             String body = pluginResponse.body();
                                             JsonObject jsonObject = gson.fromJson(body, JsonObject.class);
                                             if (jsonObject != null) {
+                                                JsonObject urls = jsonObject.getAsJsonObject("urls");
+                                                String sourceCodeUrl = urls.getAsJsonPrimitive("sourceCodeUrl").getAsString();
+                                                String bugtrackerUrl = urls.getAsJsonPrimitive("bugtrackerUrl").getAsString();
                                                 PluginRecord pluginRecord = new PluginRecord(pr.value(),
                                                         pr.url(),
                                                         pr.organization,
                                                         pr.target,
-                                                        jsonObject.getAsJsonObject("urls").getAsJsonPrimitive("sourceCodeUrl").getAsString(),
+                                                        sourceCodeUrl,
+                                                        bugtrackerUrl,
                                                         jsonObject.getAsJsonPrimitive("downloads").getAsInt(),
                                                         gson.toJson(jsonObject)
                                                 );
