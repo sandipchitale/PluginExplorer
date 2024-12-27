@@ -16,16 +16,18 @@ import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.openapi.wm.ex.ToolWindowEx;
 import com.intellij.ui.ScrollPaneFactory;
+import com.intellij.ui.SearchTextField;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.table.JBTable;
+import com.intellij.util.ui.components.BorderLayoutPanel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -49,6 +51,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private final DefaultTableModel pluginsTableModel;
     private final JBTable pluginsTable;
 
+    private final TableRowSorter<DefaultTableModel> pluginsTableRowSorter;
+
+    private final SearchTextField pluginsSearchTextField;
+
     private static final int DESCRIPTOR_COLUMN = -1;
     private static int index = 0;
     private static final int NAME_COLUMN = index++;
@@ -61,7 +67,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
-    //    private static final int SINCE_COLUMN = index++;
+//    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
     private static final int INFO_COLUMN = index++;
     private static final int OPEN_PATH_COLUMN = index++;
@@ -101,8 +107,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
         gson = new GsonBuilder().setPrettyPrinting().create();
 
-        pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
+        BorderLayoutPanel pluginsTablePanel = new BorderLayoutPanel();
 
+        pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
             @Override
             public Class<?> getColumnClass(int columnIndex) {
                 if (columnIndex == DESCRIPTOR_COLUMN) {
@@ -146,6 +153,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 // Locate the renderer under the event location
                 int row = rowAtPoint(p);
                 int column = columnAtPoint(p);
+                if (row == -1 || column == -1) {
+                    return "";
+                }
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
@@ -178,6 +188,36 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 return super.getToolTipText(event);
             }
         };
+
+        pluginsTableRowSorter = new TableRowSorter<>(pluginsTableModel);
+        pluginsTable.setRowSorter(pluginsTableRowSorter);
+
+        BorderLayoutPanel toolbarPanel = new BorderLayoutPanel();
+
+        pluginsSearchTextField = new SearchTextField();
+        pluginsSearchTextField.setToolTipText("Filter");
+        pluginsSearchTextField.addKeyboardListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    pluginsSearchTextField.setText("");
+                    search(pluginsSearchTextField, pluginsTableRowSorter);
+                    return;
+                } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    search(pluginsSearchTextField, pluginsTableRowSorter);
+                }
+            }
+        });
+        toolbarPanel.addToCenter(pluginsSearchTextField);
+
+        JButton searchButton = new JButton(AllIcons.General.Filter);
+        searchButton.setToolTipText("Filter");
+        searchButton.addActionListener((ActionEvent actionEvent) -> {
+            search(pluginsSearchTextField, pluginsTableRowSorter);
+        });
+        toolbarPanel.addToRight(searchButton);
+
+        pluginsTablePanel.addToTop(toolbarPanel);
 
         pluginsTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -308,7 +348,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setWidth(40);
         column.setMaxWidth(40);
 
-        setContent(ScrollPaneFactory.createScrollPane(pluginsTable));
+        pluginsTablePanel.addToCenter(ScrollPaneFactory.createScrollPane(pluginsTable));
+
+        setContent(pluginsTablePanel);
 
         final ActionManager actionManager = ActionManager.getInstance();
         ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
@@ -407,6 +449,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             if (!idString.isEmpty()) {
                 pluginsTableModel.addRow(new IdeaPluginDescriptor[]{ideaPluginDescriptor});
             }
+        }
+
+        List<String> pluginNamesList = Arrays.stream(ideaPluginDescriptors).map(IdeaPluginDescriptor::getName).toList();
+        pluginsSearchTextField.setHistory(pluginNamesList);
+        pluginsSearchTextField.setHistorySize(pluginNamesList.size());
+    }
+
+    private void search(SearchTextField searchTextField, TableRowSorter<DefaultTableModel> tableRowSorter) {
+        String text = searchTextField.getText();
+        if (text.isEmpty()) {
+            tableRowSorter.setRowFilter(null);
+        } else {
+            tableRowSorter.setRowFilter(RowFilter.regexFilter("(?i)" + Pattern.quote(text)));
         }
     }
 }
