@@ -196,7 +196,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     }
                     return "Downloads";
                 } else if (column == DEPENDENCIES_COLUMN) {
-                    return "Dependencies";
+                    return "Alt double-click to open Plugin Dependencies";
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                     return "Alt double-click to open Plugin page on JetBrains Marketplace";
                 } else if (column == SOURCECODE_URL_COLUMN) {
