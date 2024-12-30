@@ -81,7 +81,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
-        COLUMNS[DOWNLOADS_COLUMN] = "";
+        COLUMNS[DOWNLOADS_COLUMN] = "Downloads";
         COLUMNS[DEPENDENCIES_COLUMN] = "";
         COLUMNS[SOURCECODE_URL_COLUMN] = "";
         COLUMNS[BUGTRACKER_URL_COLUMN] = "";
@@ -123,7 +123,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
                 } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN ||
-                        columnIndex == DOWNLOADS_COLUMN ||
                         columnIndex == DEPENDENCIES_COLUMN ||
                         columnIndex == SOURCECODE_URL_COLUMN ||
                         columnIndex == BUGTRACKER_URL_COLUMN ||
@@ -131,6 +130,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                         columnIndex == INFO_COLUMN ||
                         columnIndex == OPEN_PATH_COLUMN) {
                     return Icon.class;
+                } else if (columnIndex == DOWNLOADS_COLUMN ) {
+                    return Number.class;
                 }
                 return String.class;
             }
@@ -144,7 +145,13 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
-                if (column == DOWNLOADS_COLUMN) return AllIcons.Actions.Download;
+                if (column == DOWNLOADS_COLUMN)  {
+                    PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
+                    if (pluginRecord != null) {
+                        return pluginRecord.downloads();
+                    }
+                    return 0;
+                };
                 if (column == DEPENDENCIES_COLUMN) return AllIcons.Toolwindows.ToolWindowModuleDependencies;
                 if (column == SOURCECODE_URL_COLUMN) return AllIcons.Actions.PrettyPrint;
                 if (column == BUGTRACKER_URL_COLUMN) return AllIcons.Actions.StartDebugger;
@@ -344,9 +351,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMaxWidth(180);
 
         column = this.pluginsTable.getColumnModel().getColumn(DOWNLOADS_COLUMN);
-        column.setMinWidth(40);
-        column.setWidth(40);
-        column.setMaxWidth(40);
+        column.setMinWidth(120);
+        column.setWidth(120);
+        column.setMaxWidth(120);
 
         column = this.pluginsTable.getColumnModel().getColumn(DEPENDENCIES_COLUMN);
         column.setMinWidth(40);
@@ -419,6 +426,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                         continue; // Skip JetBrains in first loop
                     if (i == 1 && (!"JetBrains".equals(ideaPluginDescriptor.getVendor())))
                         continue; // Process JetBrains in sec ond loop
+                    final int row = i;
                     PluginId pluginId = ideaPluginDescriptor.getPluginId();
                     String pluginName = ideaPluginDescriptor.getName();
                     try {
@@ -473,6 +481,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                         gson.toJson(jsonObject)
                                                 );
                                                 pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
+                                                pluginsTableModel.fireTableRowsUpdated(row, row);
                                             }
                                         } catch (IOException | InterruptedException ignore) {
                                         }
