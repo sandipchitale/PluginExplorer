@@ -24,14 +24,16 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Downloads count in tool tip ( if available )</li>
+            <li>Description in a Dialog.</li>
+            <li>Change alt-double-click to double-click.</li>
         </ul>
         <h2>Features</h2>
         <ul>
             <li>Refresh</li>
             <li>Open plugin path in File manager</li>
-            <li>Oen plugin's JetBrains Marketplace page in browser</li>
+            <li>Open plugin's JetBrains Marketplace page in browser</li>
             <li>Go to Plugins page action</li>
+            <li>Downloads count in tool tip ( if available )</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>

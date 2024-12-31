@@ -23,6 +23,7 @@ import com.intellij.util.ui.components.BorderLayoutPanel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.event.HyperlinkEvent;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableRowSorter;
@@ -30,6 +31,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -71,8 +74,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
     private static final int INFO_COLUMN = index++;
-    private static final int OPEN_PATH_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
+    private static final int OPEN_PATH_COLUMN = index++;
 
     private static String[] COLUMNS = new String[index];
 
@@ -91,8 +94,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //        COLUMNS[SINCE_COLUMN] = "Since";
 //        COLUMNS[UNTIL_COLUMN] = "Until";
         COLUMNS[INFO_COLUMN] = "";
-        COLUMNS[OPEN_PATH_COLUMN] = "";
         COLUMNS[PATH_COLUMN] = "Path";
+        COLUMNS[OPEN_PATH_COLUMN] = "";
     }
 
     private final Gson gson;
@@ -134,6 +137,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return Number.class;
                 }
                 return String.class;
+            }
+
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
             }
 
             @Override
@@ -182,7 +190,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
-                    if (description != null) return description;
+                    if (description != null)  {
+                        return description;
+                    }
+                    return "Double-click to view Plugin description.";
                 } else if (column == VERSION_COLUMN) {
                     String sinceBuild = ideaPluginDescriptor.getSinceBuild();
                     String untilBuild = ideaPluginDescriptor.getUntilBuild();
@@ -196,19 +207,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     }
                     return "Downloads";
                 } else if (column == DEPENDENCIES_COLUMN) {
-                    return "Alt double-click to open Plugin Dependencies";
+                    return "Double-click to open Plugin Dependencies";
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
-                    return "Alt double-click to open Plugin page on JetBrains Marketplace";
+                    return "Double-click to open Plugin page on JetBrains Marketplace";
                 } else if (column == SOURCECODE_URL_COLUMN) {
-                    return "Alt double-click to open source code URI if available.";
+                    return "Double-click to open source code URI if available.";
                 } else if (column == BUGTRACKER_URL_COLUMN) {
-                    return "Alt double-click to open bug tracker URI if available.";
+                    return "Double-click to open bug tracker URI if available.";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
                 } else if (column == INFO_COLUMN) {
-                    return "Alt double-click to see raw information";
-                } else if (column == OPEN_PATH_COLUMN) {
-                    return "Alt double-click to open Plugin Path";
+                    return "Double-click to see raw information";
+                } else if (column == OPEN_PATH_COLUMN || column == PATH_COLUMN) {
+                    return "Double-click to open Plugin Path";
                 }
                 return super.getToolTipText(event);
             }
@@ -247,19 +258,43 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent mouseEvent) {
-                if (mouseEvent.isAltDown() && mouseEvent.getClickCount() == 2) {
+                if (mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
-                    if (column == OPEN_ON_MARKETPLACE_COLUMN ||
+                    if (column == NAME_COLUMN ||
+                            column == OPEN_ON_MARKETPLACE_COLUMN ||
                             column == DEPENDENCIES_COLUMN ||
                             column == SOURCECODE_URL_COLUMN ||
                             column == BUGTRACKER_URL_COLUMN ||
                             column == INFO_COLUMN ||
-                            column == OPEN_PATH_COLUMN) {
+                            column == OPEN_PATH_COLUMN ||
+                            column == PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
-                        if (column == OPEN_ON_MARKETPLACE_COLUMN) {
+                        if (column == NAME_COLUMN) {
+                            String description = ideaPluginDescriptor.getDescription();
+                            if (description != null)  {
+                                JEditorPane editorPane = new JEditorPane("text/html", description);
+                                editorPane.setEditable(false);
+                                editorPane.setPreferredSize(new Dimension(700, 600));
+                                editorPane.addHyperlinkListener((HyperlinkEvent hyperlinkEvent) -> {
+                                    if (hyperlinkEvent.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                                        URL url = hyperlinkEvent.getURL();
+                                        if (url.getProtocol().startsWith("http")) {
+                                            try {
+                                                Desktop.getDesktop().browse(url.toURI());
+                                            } catch (IOException | URISyntaxException ignore) {
+                                            }
+                                        }
+                                    }
+                                });
+                                JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
+                                        new JScrollPane(editorPane),
+                                        "Plugin description",
+                                        JOptionPane.PLAIN_MESSAGE);
+                            }
+                        } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                             @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
                             PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(pluginId);
                             if (pluginRecord != null) {
