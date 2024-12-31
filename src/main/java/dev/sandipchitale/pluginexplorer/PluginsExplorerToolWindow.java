@@ -187,6 +187,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (row == -1 || column == -1) {
                     return "";
                 }
+                // In case sorting was in effect, convert the row index to real model index
+                row = pluginsTableRowSorter.convertRowIndexToModel(row);
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
@@ -271,6 +273,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             column == PATH_COLUMN) {
                         Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
+                        // In case sorting was in effect, convert the row index to real model index
+                        row = pluginsTableRowSorter.convertRowIndexToModel(row);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                         if (column == NAME_COLUMN) {
                             String description = ideaPluginDescriptor.getDescription();
