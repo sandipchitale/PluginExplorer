@@ -112,6 +112,24 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     Map<PluginId, PluginRecord> pluginIdToPluginRecordMap = new ConcurrentHashMap<>();
 
+    private static class IntegerComparator implements Comparator<Object> {
+        @Override
+        public int compare(Object o1, Object o2) {
+            if (o1 == null && o2 == null) {
+                return 0;
+            } else if (o1 == null) {
+                return -1;
+            } else if (o2 == null) {
+                return 1;
+            }
+
+            int n1 = Integer.parseInt(o1.toString());
+            int n2 = Integer.parseInt(o2.toString());
+
+            return Integer.compare(n1, n2);
+        }
+    }
+
     public PluginsExplorerToolWindow(@NotNull Project project) {
         super(true, true);
         this.project = project;
@@ -123,7 +141,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == DESCRIPTOR_COLUMN) {
+                if (columnIndex == DOWNLOADS_COLUMN ) {
+                    return Integer.class;
+                } else if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
                 } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN ||
                         columnIndex == DEPENDENCIES_COLUMN ||
@@ -133,8 +153,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                         columnIndex == INFO_COLUMN ||
                         columnIndex == OPEN_PATH_COLUMN) {
                     return Icon.class;
-                } else if (columnIndex == DOWNLOADS_COLUMN ) {
-                    return Number.class;
                 }
                 return String.class;
             }
@@ -228,6 +246,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         };
 
         pluginsTableRowSorter = new TableRowSorter<>(pluginsTableModel);
+        pluginsTableRowSorter.setComparator(DOWNLOADS_COLUMN, new IntegerComparator());
         pluginsTable.setRowSorter(pluginsTableRowSorter);
 
         BorderLayoutPanel toolbarPanel = new BorderLayoutPanel();
