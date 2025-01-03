@@ -24,8 +24,8 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Description in a Dialog.</li>
-            <li>Change alt-double-click to double-click.</li>
+            <li>Open plugin.xml in editor. Use Structure tool window to easily see and navigate extensions, extensionPoints and actions implemented by the plugin.</li>
+            <li>Sort download count numerically.</li>
         </ul>
         <h2>Features</h2>
         <ul>
@@ -34,6 +34,8 @@
             <li>Open plugin's JetBrains Marketplace page in browser</li>
             <li>Go to Plugins page action</li>
             <li>Downloads count in tool tip ( if available )</li>
+            <li>Description in a Dialog.</li>
+            <li>Change alt-double-click to double-click.</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
@@ -41,7 +43,7 @@
         </ul>
         <h2>Bug Fixes</h2>
         <ul>
-            <li>None</li>
+            <li>Handle row number correctly when sorting is in effect.</li>
         </ul>
         ]]></change-notes>
 
