@@ -6,12 +6,17 @@ import com.google.gson.JsonObject;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDependency;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.ide.plugins.IdeaPluginDescriptorImpl;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
+import com.intellij.openapi.vfs.JarFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.openapi.wm.ex.ToolWindowEx;
@@ -29,6 +34,7 @@ import javax.swing.table.TableColumn;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -42,8 +48,10 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
@@ -64,6 +72,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
+    private static final int PLUGIN_XML_COLUMN = index++;
     private static final int DOWNLOADS_COLUMN = index++;
     private static final int DEPENDENCIES_COLUMN = index++;
     private static final int SOURCECODE_URL_COLUMN = index++;
@@ -84,6 +93,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
+        COLUMNS[PLUGIN_XML_COLUMN] = "";
         COLUMNS[DOWNLOADS_COLUMN] = "Downloads";
         COLUMNS[DEPENDENCIES_COLUMN] = "";
         COLUMNS[SOURCECODE_URL_COLUMN] = "";
@@ -146,6 +156,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 } else if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
                 } else if (columnIndex == OPEN_ON_MARKETPLACE_COLUMN ||
+                        columnIndex == PLUGIN_XML_COLUMN ||
                         columnIndex == DEPENDENCIES_COLUMN ||
                         columnIndex == SOURCECODE_URL_COLUMN ||
                         columnIndex == BUGTRACKER_URL_COLUMN ||
@@ -171,6 +182,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
+                if (column == PLUGIN_XML_COLUMN) return AllIcons.FileTypes.Xml;
                 if (column == DOWNLOADS_COLUMN)  {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
@@ -220,6 +232,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return String.format("Since Build: %s - Until Build: %s",
                             Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
+                } else if (column == PLUGIN_XML_COLUMN) {
+                    return "Double-click to open plugin.xml";
                 } else if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
@@ -284,6 +298,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     int column = pluginsTable.columnAtPoint(p);
                     if (column == NAME_COLUMN ||
                             column == OPEN_ON_MARKETPLACE_COLUMN ||
+                            column == PLUGIN_XML_COLUMN ||
                             column == DEPENDENCIES_COLUMN ||
                             column == SOURCECODE_URL_COLUMN ||
                             column == BUGTRACKER_URL_COLUMN ||
@@ -327,6 +342,28 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                     desktop.browse(uri);
                                 } catch (IOException ignore) {
                                 }
+                            }
+                        } else if (column == PLUGIN_XML_COLUMN) {
+                            File libDir = ideaPluginDescriptor.getPluginPath().resolve("lib").toFile();
+                            if ( libDir.exists()) {
+                                // Locate plugin.xml inside the .jar file
+                                Arrays.stream(libDir.listFiles()).forEach(file -> {
+                                    if (file.getName().endsWith(".jar")) {
+                                        try {
+                                            JarFile jarFile = new JarFile(file);
+                                            ZipEntry pluginXml = jarFile.getEntry("META-INF/plugin.xml");
+                                            if (pluginXml != null) {
+                                                String jarUrl = JarFileSystem.PROTOCOL_PREFIX + file.getAbsolutePath() + JarFileSystem.JAR_SEPARATOR + "META-INF/plugin.xml";
+                                                VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(jarUrl);
+                                                if (virtualFile != null) {
+                                                    // Open as read-only
+                                                    FileEditorManager.getInstance(project).openFile(virtualFile, true);
+                                                }
+                                            }
+                                        } catch (IOException ignore) {
+                                        }
+                                    }
+                                });
                             }
                         } else if (column == DEPENDENCIES_COLUMN) {
                             StringBuilder stringBuilder = new StringBuilder();
@@ -394,6 +431,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //        column.setMaxWidth(250);
 
         column = this.pluginsTable.getColumnModel().getColumn(OPEN_ON_MARKETPLACE_COLUMN);
+        column.setMinWidth(40);
+        column.setWidth(40);
+        column.setMaxWidth(40);
+
+        column = this.pluginsTable.getColumnModel().getColumn(PLUGIN_XML_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
