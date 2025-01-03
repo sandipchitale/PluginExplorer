@@ -72,8 +72,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
-    private static final int PLUGIN_XML_COLUMN = index++;
     private static final int DOWNLOADS_COLUMN = index++;
+    private static final int PLUGIN_XML_COLUMN = index++;
     private static final int DEPENDENCIES_COLUMN = index++;
     private static final int SOURCECODE_URL_COLUMN = index++;
     private static final int BUGTRACKER_URL_COLUMN = index++;
@@ -93,8 +93,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
-        COLUMNS[PLUGIN_XML_COLUMN] = "";
         COLUMNS[DOWNLOADS_COLUMN] = "Downloads";
+        COLUMNS[PLUGIN_XML_COLUMN] = "";
         COLUMNS[DEPENDENCIES_COLUMN] = "";
         COLUMNS[SOURCECODE_URL_COLUMN] = "";
         COLUMNS[BUGTRACKER_URL_COLUMN] = "";
@@ -182,7 +182,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
-                if (column == PLUGIN_XML_COLUMN) return AllIcons.FileTypes.Xml;
                 if (column == DOWNLOADS_COLUMN)  {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
@@ -190,6 +189,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     }
                     return 0;
                 };
+                if (column == PLUGIN_XML_COLUMN) return AllIcons.FileTypes.Xml;
                 if (column == DEPENDENCIES_COLUMN) return AllIcons.Toolwindows.ToolWindowModuleDependencies;
                 if (column == SOURCECODE_URL_COLUMN) return AllIcons.Actions.PrettyPrint;
                 if (column == BUGTRACKER_URL_COLUMN) return AllIcons.Actions.StartDebugger;
@@ -232,14 +232,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return String.format("Since Build: %s - Until Build: %s",
                             Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
-                } else if (column == PLUGIN_XML_COLUMN) {
-                    return "Double-click to open plugin.xml";
-                } else if (column == DOWNLOADS_COLUMN) {
+                }else if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
                         return String.format("Downloads: %d", pluginRecord.downloads());
                     }
                     return "Downloads";
+                } else if (column == PLUGIN_XML_COLUMN) {
+                    return "Double-click to open plugin.xml";
                 } else if (column == DEPENDENCIES_COLUMN) {
                     return "Double-click to open Plugin Dependencies";
                 } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
@@ -298,8 +298,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     int column = pluginsTable.columnAtPoint(p);
                     if (column == NAME_COLUMN ||
                             column == OPEN_ON_MARKETPLACE_COLUMN ||
-                            column == PLUGIN_XML_COLUMN ||
                             column == DEPENDENCIES_COLUMN ||
+                            column == PLUGIN_XML_COLUMN ||
                             column == SOURCECODE_URL_COLUMN ||
                             column == BUGTRACKER_URL_COLUMN ||
                             column == INFO_COLUMN ||
@@ -343,14 +343,23 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 } catch (IOException ignore) {
                                 }
                             }
+                        } else if (column == DEPENDENCIES_COLUMN) {
+                            StringBuilder stringBuilder = new StringBuilder();
+                            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
+                            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
+                                stringBuilder.append(String.format("PluginID: %-50s Optional: %s\n", ideaPluginDescriptorDependency.getPluginId(), ideaPluginDescriptorDependency.isOptional()));
+                            }
+                            JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
+                                    new JScrollPane(new JBTextArea(stringBuilder.toString(), 20, 80)),
+                                    "Dependencies",
+                                    JOptionPane.PLAIN_MESSAGE);
                         } else if (column == PLUGIN_XML_COLUMN) {
                             File libDir = ideaPluginDescriptor.getPluginPath().resolve("lib").toFile();
-                            if ( libDir.exists()) {
+                            if (libDir.exists()) {
                                 // Locate plugin.xml inside the .jar file
-                                Arrays.stream(libDir.listFiles()).forEach(file -> {
+                                Arrays.stream(Objects.requireNonNull(libDir.listFiles())).forEach(file -> {
                                     if (file.getName().endsWith(".jar")) {
-                                        try {
-                                            JarFile jarFile = new JarFile(file);
+                                        try (JarFile jarFile = new JarFile(file)) {
                                             ZipEntry pluginXml = jarFile.getEntry("META-INF/plugin.xml");
                                             if (pluginXml != null) {
                                                 String jarUrl = JarFileSystem.PROTOCOL_PREFIX + file.getAbsolutePath() + JarFileSystem.JAR_SEPARATOR + "META-INF/plugin.xml";
@@ -365,16 +374,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                     }
                                 });
                             }
-                        } else if (column == DEPENDENCIES_COLUMN) {
-                            StringBuilder stringBuilder = new StringBuilder();
-                            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
-                            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
-                                stringBuilder.append(String.format("PluginID: %-50s Optional: %s\n", ideaPluginDescriptorDependency.getPluginId(), ideaPluginDescriptorDependency.isOptional()));
-                            }
-                            JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
-                                    new JScrollPane(new JBTextArea(stringBuilder.toString(), 20, 80)),
-                                    "Dependencies",
-                                    JOptionPane.PLAIN_MESSAGE);
                         } else if (column == BUGTRACKER_URL_COLUMN) {
                             @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
                             PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
