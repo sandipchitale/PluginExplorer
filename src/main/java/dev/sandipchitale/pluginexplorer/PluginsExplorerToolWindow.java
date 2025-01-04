@@ -3,10 +3,10 @@ package dev.sandipchitale.pluginexplorer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDependency;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.IdeaPluginDescriptorImpl;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -80,7 +80,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
-//    private static final int SINCE_COLUMN = index++;
+    //    private static final int SINCE_COLUMN = index++;
 //    private static final int UNTIL_COLUMN = index++;
     private static final int INFO_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
@@ -117,6 +117,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 String sourceCodeUrl,
                                 String bugtrackerUrl,
                                 int downloads,
+                                String icon,
                                 String information) {
     }
 
@@ -151,7 +152,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTableModel = new DefaultTableModel(COLUMNS, 0) {
             @Override
             public Class<?> getColumnClass(int columnIndex) {
-                if (columnIndex == DOWNLOADS_COLUMN ) {
+                if (columnIndex == DOWNLOADS_COLUMN) {
                     return Integer.class;
                 } else if (columnIndex == DESCRIPTOR_COLUMN) {
                     return IdeaPluginDescriptor.class;
@@ -182,13 +183,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
-                if (column == DOWNLOADS_COLUMN)  {
+                if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
                         return pluginRecord.downloads();
                     }
                     return 0;
-                };
+                }
+                ;
                 if (column == PLUGIN_XML_COLUMN) return AllIcons.FileTypes.Xml;
                 if (column == DEPENDENCIES_COLUMN) return AllIcons.Toolwindows.ToolWindowModuleDependencies;
                 if (column == SOURCECODE_URL_COLUMN) return AllIcons.Actions.PrettyPrint;
@@ -222,7 +224,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
-                    if (description != null)  {
+                    if (description != null) {
                         return description;
                     }
                     return "Double-click to view Plugin description.";
@@ -232,7 +234,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return String.format("Since Build: %s - Until Build: %s",
                             Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
-                }else if (column == DOWNLOADS_COLUMN) {
+                } else if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
                         return String.format("Downloads: %d", pluginRecord.downloads());
@@ -310,9 +312,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                         // In case sorting was in effect, convert the row index to real model index
                         row = pluginsTableRowSorter.convertRowIndexToModel(row);
                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
+                        @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
+                        PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(pluginId);
                         if (column == NAME_COLUMN) {
                             String description = ideaPluginDescriptor.getDescription();
-                            if (description != null)  {
+                            if (description != null) {
+//                                if (pluginRecord != null && pluginRecord.icon() != null) {
+//                                    description = String.format("<div><img src=\"https://downloads.marketplace.jetbrains.com%s\" width=\"80\" height=\"80\"/></div>%s", pluginRecord.icon(), description);
+//                                }
+                                description = String.format("<html><head></head><body>%s</body></html>", description);
+
                                 JEditorPane editorPane = new JEditorPane("text/html", description);
                                 editorPane.setEditable(false);
                                 editorPane.setPreferredSize(new Dimension(700, 600));
@@ -327,14 +336,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                         }
                                     }
                                 });
+                                editorPane.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
                                 JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
-                                        new JScrollPane(editorPane),
+                                        ScrollPaneFactory.createScrollPane(editorPane),
                                         "Plugin description",
                                         JOptionPane.PLAIN_MESSAGE);
                             }
                         } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
-                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                            PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(pluginId);
                             if (pluginRecord != null) {
                                 try {
                                     URI uri = URI.create(
@@ -375,23 +384,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 });
                             }
                         } else if (column == BUGTRACKER_URL_COLUMN) {
-                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
-                            if (pluginNode != null) {
+                            if (pluginRecord != null) {
                                 try {
-                                    String bugtrackerURI = pluginNode.bugtrackerUrl();
+                                    String bugtrackerURI = pluginRecord.bugtrackerUrl();
                                     if (bugtrackerURI != null && !bugtrackerURI.isEmpty()) {
                                         desktop.browse(URI.create(bugtrackerURI));
                                     }
                                 } catch (IOException ignore) {
                                 }
                             }
-                        }  else if (column == SOURCECODE_URL_COLUMN) {
-                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
-                            if (pluginNode != null) {
+                        } else if (column == SOURCECODE_URL_COLUMN) {
+                            if (pluginRecord != null) {
                                 try {
-                                    String sourceCodeUrl = pluginNode.sourceCodeUrl();
+                                    String sourceCodeUrl = pluginRecord.sourceCodeUrl();
                                     if (sourceCodeUrl != null && !sourceCodeUrl.isEmpty()) {
                                         desktop.browse(URI.create(sourceCodeUrl));
                                     }
@@ -399,11 +404,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 }
                             }
                         } else if (column == INFO_COLUMN) {
-                            @NotNull PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                            PluginRecord pluginNode = pluginIdToPluginRecordMap.get(pluginId);
-                            if (pluginNode != null) {
+                            if (pluginRecord != null) {
                                 JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
-                                        new JScrollPane(new JBTextArea(pluginNode.information(), 20, 120)),
+                                        new JScrollPane(new JBTextArea(pluginRecord.information(), 20, 120)),
                                         "Raw Information",
                                         JOptionPane.INFORMATION_MESSAGE);
                             }
@@ -568,15 +571,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                             JsonObject jsonObject = gson.fromJson(body, JsonObject.class);
                                             if (jsonObject != null) {
                                                 JsonObject urls = jsonObject.getAsJsonObject("urls");
+                                                int downloads = jsonObject.getAsJsonPrimitive("downloads").getAsInt();
                                                 String sourceCodeUrl = urls.getAsJsonPrimitive("sourceCodeUrl").getAsString();
                                                 String bugtrackerUrl = urls.getAsJsonPrimitive("bugtrackerUrl").getAsString();
+                                                JsonPrimitive iconObject = jsonObject.getAsJsonPrimitive("icon");
+                                                String icon = iconObject == null ? null : iconObject.getAsString();
                                                 PluginRecord pluginRecord = new PluginRecord(pr.value(),
                                                         pr.url(),
                                                         pr.organization,
                                                         pr.target,
                                                         sourceCodeUrl,
                                                         bugtrackerUrl,
-                                                        jsonObject.getAsJsonPrimitive("downloads").getAsInt(),
+                                                        downloads,
+                                                        icon,
                                                         gson.toJson(jsonObject)
                                                 );
                                                 pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
