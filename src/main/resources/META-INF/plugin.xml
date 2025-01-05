@@ -24,8 +24,7 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Open plugin.xml in editor. Use Structure tool window to easily see and navigate extensions, extensionPoints and actions implemented by the plugin.</li>
-            <li>Sort download count numerically.</li>
+            <li>Support control click navigation to .class files for types referenced in plugin.xml. The .class files are decompiled by the IDE.</li>
         </ul>
         <h2>Features</h2>
         <ul>
@@ -36,6 +35,8 @@
             <li>Downloads count in tool tip ( if available )</li>
             <li>Description in a Dialog.</li>
             <li>Change alt-double-click to double-click.</li>
+            <li>Open plugin.xml in editor. Use Structure tool window to easily see and navigate extensions, extensionPoints and actions implemented by the plugin.</li>
+            <li>Sort download count numerically.</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
