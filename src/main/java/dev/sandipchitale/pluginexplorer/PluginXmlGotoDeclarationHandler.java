@@ -8,6 +8,7 @@ import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlToken;
 import org.jetbrains.annotations.Nullable;
@@ -38,7 +39,8 @@ public class PluginXmlGotoDeclarationHandler extends GotoDeclarationHandlerBase 
             PsiFile containingFile = sourceElement.getContainingFile();
             if (containingFile != null && "plugin.xml".equals(containingFile.getName())) {
                 if (sourceElement instanceof XmlToken xmlToken) {
-                    if ("XML_ATTRIBUTE_VALUE_TOKEN".equals(xmlToken.getTokenType().getDebugName())) {
+                    IElementType tokenType = xmlToken.getTokenType();
+                    if ("XML_ATTRIBUTE_VALUE_TOKEN".equals(tokenType.toString())) {
                         PsiElement grandParent = xmlToken.getParent().getParent();
                         if (grandParent instanceof XmlAttribute xmlAttribute) {
                             String attributeName = xmlAttribute.getName();
