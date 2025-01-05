@@ -11,6 +11,7 @@ import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
+import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
@@ -176,7 +177,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
             @Override
             public Object getValueAt(int row, int column) {
-                Vector rowVector = dataVector.get(row);
+                Vector<?> rowVector = dataVector.get(row);
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) rowVector.get(0);
                 if (column == DESCRIPTOR_COLUMN) return ideaPluginDescriptor;
                 if (column == NAME_COLUMN) return ideaPluginDescriptor.getName();
@@ -375,7 +376,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(jarUrl);
                                                 if (virtualFile != null) {
                                                     // Open as read-only
-                                                    FileEditorManager.getInstance(project).openFile(virtualFile, true);
+                                                    FileEditor[] fileEditors = FileEditorManager.getInstance(project).openFile(virtualFile, true);
                                                 }
                                             }
                                         } catch (IOException ignore) {

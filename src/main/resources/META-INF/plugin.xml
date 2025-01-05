@@ -62,6 +62,7 @@
                 toolWindowId="Plugins Explorer"
                 displayType="BALLOON"
         />
+        <gotoDeclarationHandler implementation="dev.sandipchitale.pluginexplorer.PluginXmlGotoDeclarationHandler"/>
     </extensions>
     <actions>
         <action id="GotoPlugins"
