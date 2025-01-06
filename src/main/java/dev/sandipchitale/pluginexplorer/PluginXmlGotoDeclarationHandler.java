@@ -13,8 +13,10 @@ import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlToken;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Objects;
 
@@ -48,7 +50,7 @@ public class PluginXmlGotoDeclarationHandler extends GotoDeclarationHandlerBase 
                                 VirtualFile virtualFile = containingFile.getVirtualFile();
                                 if (virtualFile != null) {
                                     try {
-                                        URI uri = new URI(virtualFile.getUrl());
+                                        URI uri = new URI(virtualFile.getUrl().replace(" ", "%20"));
                                         String classFileJarUrl = JarFileSystem.PROTOCOL_PREFIX + uri.getPath().replaceFirst("![^!]+", "") + JarFileSystem.JAR_SEPARATOR + (xmlToken.getText().replace(".", "/") + ".class");
                                         VirtualFile classVirtualFile = VirtualFileManager.getInstance().findFileByUrl(classFileJarUrl);
                                         if (classVirtualFile != null) {
