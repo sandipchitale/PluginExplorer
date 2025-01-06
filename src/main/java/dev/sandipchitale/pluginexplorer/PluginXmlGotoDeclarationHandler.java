@@ -24,6 +24,7 @@ public class PluginXmlGotoDeclarationHandler extends GotoDeclarationHandlerBase 
 
     private static final List<String> potentialTypeNames = List.of(
             "builderClass",
+            "class",
             "className",
             "factoryClass",
             "hostElementClass",
