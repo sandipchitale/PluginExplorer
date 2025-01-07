@@ -11,7 +11,9 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * A class that allows user to select visible columns of a JTable using a popup menu.
@@ -23,11 +25,30 @@ class JTableColumnSelector {
     private final Map<Integer, TableColumn> hiddenColumns = new HashMap<>();
     private JTable table;
 
+    private static List<String> columnLabels;
+
     /**
      * Constructor. Call {@link #install(JTable) install} to actually
      * install it on a JTable.
      */
     public JTableColumnSelector() {
+        columnLabels = Stream.of(
+        "Name",
+        "Open on Marketplace",
+        "ID",
+        "Version",
+        "Downloads",
+        "Open Plugin.xml",
+        "Show Dependencies",
+        "Go Sourcecode Repository",
+        "Show Bugtracker",
+        "Enabled/Disabled",
+        "Category",
+        "Vendor",
+        "Show Raw Info",
+        "Path",
+        "Open Path"
+        ).toList();
     }
 
     /**
@@ -50,7 +71,7 @@ class JTableColumnSelector {
 
     private JCheckBoxMenuItem createMenuItem(final int modelIndex) {
         final TableModel model = table.getModel();
-        final String columnName = String.format("  %s", model.getColumnName(modelIndex));
+        final String columnName = String.format("  %s", columnLabels.get(modelIndex));
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(columnName);
         menuItem.setSelected(true);
         menuItem.addActionListener(action -> {

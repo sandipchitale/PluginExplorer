@@ -81,8 +81,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
-    //    private static final int SINCE_COLUMN = index++;
-//    private static final int UNTIL_COLUMN = index++;
+    // private static final int SINCE_COLUMN = index++;
+    // private static final int UNTIL_COLUMN = index++;
     private static final int INFO_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
     private static final int OPEN_PATH_COLUMN = index++;
