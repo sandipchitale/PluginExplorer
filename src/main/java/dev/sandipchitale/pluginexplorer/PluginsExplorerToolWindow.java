@@ -266,6 +266,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTableRowSorter.setComparator(DOWNLOADS_COLUMN, new IntegerComparator());
         pluginsTable.setRowSorter(pluginsTableRowSorter);
 
+        new JTableColumnSelector().install(pluginsTable);
+
         BorderLayoutPanel toolbarPanel = new BorderLayoutPanel();
 
         pluginsSearchTextField = new SearchTextField();
