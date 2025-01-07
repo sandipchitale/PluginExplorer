@@ -33,21 +33,21 @@ class JTableColumnSelector {
      */
     public JTableColumnSelector() {
         columnLabels = Stream.of(
-        "Name",
-        "Open on Marketplace",
-        "ID",
-        "Version",
-        "Downloads",
-        "Open Plugin.xml",
-        "Show Dependencies",
-        "Go Sourcecode Repository",
-        "Show Bugtracker",
-        "Enabled/Disabled",
-        "Category",
-        "Vendor",
-        "Show Raw Info",
-        "Path",
-        "Open Path"
+                "Name",
+                "Open on Marketplace",
+                "ID",
+                "Version",
+                "Downloads",
+                "Open Plugin.xml",
+                "Show Dependencies",
+                "Go Sourcecode Repository",
+                "Show Bugtracker",
+                "Enabled/Disabled",
+                "Category",
+                "Vendor",
+                "Show Raw Info",
+                "Path",
+                "Open Path"
         ).toList();
     }
 
