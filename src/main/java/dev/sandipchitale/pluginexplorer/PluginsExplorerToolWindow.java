@@ -524,7 +524,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 ).toList());
         pluginsTableColumnSelector.install(pluginsTable);
         // Hide path column
-        // pluginsTableColumnSelector.setColumnVisible(PATH_COLUMN, false);
+        pluginsTableColumnSelector.setColumnVisible(PATH_COLUMN, false);
 
         pluginsTablePanel.addToCenter(ScrollPaneFactory.createScrollPane(pluginsTable));
 
