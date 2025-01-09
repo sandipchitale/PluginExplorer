@@ -52,6 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
@@ -64,6 +65,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private final JBTable pluginsTable;
 
     private final TableRowSorter<DefaultTableModel> pluginsTableRowSorter;
+    private final JTableColumnSelector pluginsTableColumnSelector;
 
     private final SearchTextField pluginsSearchTextField;
 
@@ -222,6 +224,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 }
                 // In case sorting was in effect, convert the row index to real model index
                 row = pluginsTableRowSorter.convertRowIndexToModel(row);
+                column = pluginsTableColumnSelector.convertColumnIndexToModel(column);
                 IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
                 if (column == NAME_COLUMN) {
                     String description = ideaPluginDescriptor.getDescription();
@@ -255,8 +258,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
                 } else if (column == INFO_COLUMN) {
                     return "Double-click to see raw information";
-                } else if (column == OPEN_PATH_COLUMN || column == PATH_COLUMN) {
+                } else if (column == PATH_COLUMN) {
                     return "Double-click to open Plugin Path";
+                } else if (column == OPEN_PATH_COLUMN) {
+                    return "Double-click to open Plugin Path<br/><br/>" + ideaPluginDescriptor.getPluginPath();
                 }
                 return super.getToolTipText(event);
             }
@@ -265,8 +270,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         pluginsTableRowSorter = new TableRowSorter<>(pluginsTableModel);
         pluginsTableRowSorter.setComparator(DOWNLOADS_COLUMN, new IntegerComparator());
         pluginsTable.setRowSorter(pluginsTableRowSorter);
-
-        new JTableColumnSelector().install(pluginsTable);
 
         BorderLayoutPanel toolbarPanel = new BorderLayoutPanel();
 
@@ -301,6 +304,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (mouseEvent.getClickCount() == 2) {
                     Point p = mouseEvent.getPoint();
                     int column = pluginsTable.columnAtPoint(p);
+                    column = pluginsTableColumnSelector.convertColumnIndexToModel(column);
                     if (column == NAME_COLUMN ||
                             column == OPEN_ON_MARKETPLACE_COLUMN ||
                             column == DEPENDENCIES_COLUMN ||
@@ -499,6 +503,28 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+
+        pluginsTableColumnSelector = new JTableColumnSelector(
+                Stream.of(
+                        "Name",
+                        "Open on Marketplace",
+                        "ID",
+                        "Version",
+                        "Downloads",
+                        "Open Plugin.xml",
+                        "Show Dependencies",
+                        "Go Sourcecode Repository",
+                        "Show Bugtracker",
+                        "Enabled/Disabled",
+                        "Category",
+                        "Vendor",
+                        "Show Raw Info",
+                        "Path",
+                        "Open Path"
+                ).toList());
+        pluginsTableColumnSelector.install(pluginsTable);
+        // Hide path column
+        // pluginsTableColumnSelector.setColumnVisible(PATH_COLUMN, false);
 
         pluginsTablePanel.addToCenter(ScrollPaneFactory.createScrollPane(pluginsTable));
 

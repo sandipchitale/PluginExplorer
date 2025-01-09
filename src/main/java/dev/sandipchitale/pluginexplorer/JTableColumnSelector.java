@@ -13,6 +13,7 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /**
@@ -22,33 +23,18 @@ import java.util.stream.Stream;
  */
 class JTableColumnSelector {
 
-    private final Map<Integer, TableColumn> hiddenColumns = new HashMap<>();
+    private final Map<Integer, TableColumn> hiddenColumns = new TreeMap<>();
+    private final Map<Integer, JCheckBoxMenuItem> menuItems = new TreeMap<>();
     private JTable table;
 
-    private static List<String> columnLabels;
+    private final List<String> columnLabels;
 
     /**
      * Constructor. Call {@link #install(JTable) install} to actually
      * install it on a JTable.
      */
-    public JTableColumnSelector() {
-        columnLabels = Stream.of(
-                "Name",
-                "Open on Marketplace",
-                "ID",
-                "Version",
-                "Downloads",
-                "Open Plugin.xml",
-                "Show Dependencies",
-                "Go Sourcecode Repository",
-                "Show Bugtracker",
-                "Enabled/Disabled",
-                "Category",
-                "Vendor",
-                "Show Raw Info",
-                "Path",
-                "Open Path"
-        ).toList();
+    public JTableColumnSelector(List<String> columnLabels) {
+        this.columnLabels = columnLabels;
     }
 
     /**
@@ -73,9 +59,10 @@ class JTableColumnSelector {
         final TableModel model = table.getModel();
         final String columnName = String.format("  %s", columnLabels.get(modelIndex));
         JCheckBoxMenuItem menuItem = new JCheckBoxMenuItem(columnName);
+        menuItems.put(modelIndex, menuItem);
         menuItem.setSelected(true);
         menuItem.addActionListener(action -> {
-            setColumnVisible(modelIndex, menuItem.isSelected());
+            setColumnVisible(modelIndex, menuItem.isSelected(), false);
         });
         menuItem.setPreferredSize(new Dimension(menuItem.getPreferredSize().width, 30));
         if (modelIndex == 0 || modelIndex == 2) {
@@ -84,11 +71,18 @@ class JTableColumnSelector {
         return menuItem;
     }
 
-    private void setColumnVisible(int modelIndex, boolean visible) {
+    void setColumnVisible(int modelIndex, boolean visible) {
+        setColumnVisible(modelIndex, visible, true);
+    }
+
+    private void setColumnVisible(int modelIndex, boolean visible, boolean adjustMenuState) {
         if (visible)
             showColumn(modelIndex);
         else
             hideColumn(modelIndex);
+        if (adjustMenuState) {
+            menuItems.get(modelIndex).setSelected(visible);
+        }
     }
 
     private void showColumn(int modelIndex) {
@@ -116,4 +110,13 @@ class JTableColumnSelector {
         }
     }
 
+    int convertColumnIndexToModel(int column) {
+        int[] columnToReturn = new int[]{column};
+        hiddenColumns.forEach((Integer modelIndex, TableColumn tableColumn) -> {
+            if (modelIndex <= columnToReturn[0]) {
+                columnToReturn[0]++;
+            }
+        });
+        return columnToReturn[0];
+    }
 }
