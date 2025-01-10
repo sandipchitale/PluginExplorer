@@ -4,16 +4,22 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.reflect.TypeToken;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDependency;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.ide.util.PropertiesComponent;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.JarFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -56,6 +62,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
+    private static String PLUGINS_EXPLORER_DOWNLOAD_COUNTS = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS");
     private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
 
     private static final Pattern PLUGIN_URL_PATTERN = Pattern.compile("^/plugin/(\\d+)-.+$");
@@ -113,6 +120,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     private final Gson gson;
 
+    private Map<String, Integer> savedDownloadsMap = new HashMap<>();
+    private Map<String, Integer> currentDownloadsMap = new HashMap<>();
+
     private record PluginRecord(String value,
                                 String url,
                                 String organization,
@@ -149,6 +159,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         this.project = project;
 
         gson = new GsonBuilder().setPrettyPrinting().create();
+        String downloadsMapJson = PropertiesComponent.getInstance().getValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, "{}");
+        ((Map<String, Integer>) gson.fromJson(downloadsMapJson, (new TypeToken<Map<String, Integer>>(){}).getType())).forEach((Object key, Object value) -> {
+            savedDownloadsMap.put(String.valueOf(key), Integer.valueOf(String.valueOf(value)));
+        });
+        if (savedDownloadsMap.isEmpty()) {
+            Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                    "Plugins explorer",
+                    "No saved download counts found.",
+                    NotificationType.INFORMATION));
+        }
 
         BorderLayoutPanel pluginsTablePanel = new BorderLayoutPanel();
 
@@ -241,7 +261,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 } else if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
-                        return String.format("Downloads: %d", pluginRecord.downloads());
+                        int downloads = pluginRecord.downloads();
+                        Integer savedDownloads = savedDownloadsMap.getOrDefault(ideaPluginDescriptor.getPluginId().getIdString(), downloads);
+                        return String.format("Downloads: %d (last checkpoint: %d %d%%)", downloads, savedDownloads, (downloads - savedDownloads) * 100 / savedDownloads);
                     }
                     return "Downloads";
                 } else if (column == PLUGIN_XML_COLUMN) {
@@ -533,13 +555,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         final ActionManager actionManager = ActionManager.getInstance();
         ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
 
+        CheckpointDownloadsAction checkpointDownloads = (CheckpointDownloadsAction) actionManager.getAction("CheckpointDownloads");
+        checkpointDownloads.setPluginsExplorerToolWindow(this);
+
         GotoPluginsAction gotoPlugins = (GotoPluginsAction) actionManager.getAction("GotoPlugins");
         gotoPlugins.setPluginsExplorerToolWindow(this);
 
         RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
         refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
 
-        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(gotoPlugins, refreshPluginsExplorerAction));
+        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(checkpointDownloads, gotoPlugins, refreshPluginsExplorerAction));
 
         refresh();
     }
@@ -615,6 +640,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                         icon,
                                                         gson.toJson(jsonObject)
                                                 );
+                                                currentDownloadsMap.put(pluginId.getIdString(), downloads);
                                                 pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
                                                 pluginsTableModel.fireTableRowsUpdated(row, row);
                                             }
@@ -651,5 +677,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         } else {
             tableRowSorter.setRowFilter(RowFilter.regexFilter("(?i)" + Pattern.quote(text)));
         }
+    }
+
+    public void checkpointDownloads() {
+        PropertiesComponent.getInstance().setValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, gson.toJson(currentDownloadsMap));
+        savedDownloadsMap.clear();
+        savedDownloadsMap.putAll(currentDownloadsMap);
     }
 }

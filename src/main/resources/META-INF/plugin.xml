@@ -66,6 +66,11 @@
         <gotoDeclarationHandler implementation="dev.sandipchitale.pluginexplorer.PluginXmlGotoDeclarationHandler"/>
     </extensions>
     <actions>
+        <action id="CheckpointDownloads"
+                class="dev.sandipchitale.pluginexplorer.CheckpointDownloadsAction"
+                description="Checkpoint download counts"
+                icon="AllIcons.Actions.Download">
+        </action>
         <action id="GotoPlugins"
                 class="dev.sandipchitale.pluginexplorer.GotoPluginsAction"
                 description="Goto plugins"
