@@ -62,7 +62,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
-    private static String PLUGINS_EXPLORER_DOWNLOAD_COUNTS = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS");
+    private static final String PLUGINS_EXPLORER_DOWNLOAD_COUNTS = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS");
     private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
 
     private static final Pattern PLUGIN_URL_PATTERN = Pattern.compile("^/plugin/(\\d+)-.+$");
@@ -120,8 +120,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     private final Gson gson;
 
-    private Map<String, Integer> savedDownloadsMap = new HashMap<>();
-    private Map<String, Integer> currentDownloadsMap = new HashMap<>();
+    private final Map<String, Integer> savedDownloadsMap = new HashMap<>();
+    private final Map<String, Integer> currentDownloadsMap = new HashMap<>();
 
     private record PluginRecord(String value,
                                 String url,
@@ -405,6 +405,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 if (virtualFile != null) {
                                                     // Open as read-only
                                                     FileEditor[] fileEditors = FileEditorManager.getInstance(project).openFile(virtualFile, true);
+                                                    if (fileEditors.length > 0) {
+                                                        fileEditors[0].getComponent().putClientProperty(PluginsExplorerToolWindow.class.getSimpleName()+ ".IdeaPluginDescriptor", ideaPluginDescriptor);
+                                                    }
                                                 }
                                             }
                                         } catch (IOException ignore) {

@@ -24,7 +24,7 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Support control click navigation to .class files for types referenced in plugin.xml. The .class files are decompiled by the IDE.</li>
+        <li>Show in IntelliJ Platform Explorer action - context menu action to show the extension point usage in IntelliJ Platform Explorer.<li>
         </ul>
         <h2>Features</h2>
         <ul>
@@ -37,6 +37,7 @@
             <li>Change alt-double-click to double-click.</li>
             <li>Open plugin.xml in editor. Use Structure tool window to easily see and navigate extensions, extensionPoints and actions implemented by the plugin.</li>
             <li>Sort download count numerically.</li>
+            <li>Support control click navigation to .class files for types referenced in plugin.xml. The .class files are decompiled by the IDE.</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
@@ -80,6 +81,12 @@
                 class="dev.sandipchitale.pluginexplorer.RefreshPluginsExplorerAction"
                 description="Refresh"
                 icon="AllIcons.Actions.Refresh">
+        </action>
+        <action id="ShowInIntelliJPlatformExplorer"
+                class="dev.sandipchitale.pluginexplorer.ShowInShowInIntelliJPlatformExplorerAction"
+                text=" Show in IntelliJ Platform Explorer"
+                icon="dev.sandipchitale.pluginexplorer.PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
     </actions>
 </idea-plugin>

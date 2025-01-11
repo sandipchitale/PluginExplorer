@@ -42,20 +42,23 @@ public class PluginXmlGotoDeclarationHandler extends GotoDeclarationHandlerBase 
                 if (sourceElement instanceof XmlToken xmlToken) {
                     IElementType tokenType = xmlToken.getTokenType();
                     if ("XML_ATTRIBUTE_VALUE_TOKEN".equals(tokenType.toString())) {
-                        PsiElement grandParent = xmlToken.getParent().getParent();
-                        if (grandParent instanceof XmlAttribute xmlAttribute) {
-                            String attributeName = xmlAttribute.getName();
-                            if (potentialTypeNames.contains(attributeName)) {
-                                VirtualFile virtualFile = containingFile.getVirtualFile();
-                                if (virtualFile != null) {
-                                    try {
-                                        URI uri = new URI(virtualFile.getUrl().replace(" ", "%20"));
-                                        String classFileJarUrl = JarFileSystem.PROTOCOL_PREFIX + uri.getPath().replaceFirst("![^!]+", "") + JarFileSystem.JAR_SEPARATOR + (xmlToken.getText().replace(".", "/") + ".class");
-                                        VirtualFile classVirtualFile = VirtualFileManager.getInstance().findFileByUrl(classFileJarUrl);
-                                        if (classVirtualFile != null) {
-                                            return PsiManager.getInstance(Objects.requireNonNull(editor.getProject())).findFile(classVirtualFile);
+                        PsiElement parent = xmlToken.getParent();
+                        if (parent != null) {
+                            PsiElement grandParent = parent.getParent();
+                            if (grandParent instanceof XmlAttribute xmlAttribute) {
+                                String attributeName = xmlAttribute.getName();
+                                if (potentialTypeNames.contains(attributeName)) {
+                                    VirtualFile virtualFile = containingFile.getVirtualFile();
+                                    if (virtualFile != null) {
+                                        try {
+                                            URI uri = new URI(virtualFile.getUrl().replace(" ", "%20"));
+                                            String classFileJarUrl = JarFileSystem.PROTOCOL_PREFIX + uri.getPath().replaceFirst("![^!]+", "") + JarFileSystem.JAR_SEPARATOR + (xmlToken.getText().replace(".", "/") + ".class");
+                                            VirtualFile classVirtualFile = VirtualFileManager.getInstance().findFileByUrl(classFileJarUrl);
+                                            if (classVirtualFile != null) {
+                                                return PsiManager.getInstance(Objects.requireNonNull(editor.getProject())).findFile(classVirtualFile);
+                                            }
+                                        } catch (URISyntaxException ignore) {
                                         }
-                                    } catch (URISyntaxException ignore) {
                                     }
                                 }
                             }
