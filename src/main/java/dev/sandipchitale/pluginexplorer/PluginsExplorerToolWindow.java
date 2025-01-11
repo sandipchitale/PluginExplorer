@@ -19,7 +19,6 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.JarFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -159,16 +158,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         this.project = project;
 
         gson = new GsonBuilder().setPrettyPrinting().create();
-        String downloadsMapJson = PropertiesComponent.getInstance().getValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, "{}");
-        ((Map<String, Integer>) gson.fromJson(downloadsMapJson, (new TypeToken<Map<String, Integer>>(){}).getType())).forEach((Object key, Object value) -> {
-            savedDownloadsMap.put(String.valueOf(key), Integer.valueOf(String.valueOf(value)));
-        });
-        if (savedDownloadsMap.isEmpty()) {
-            Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
-                    "Plugins explorer",
-                    "No saved download counts found.",
-                    NotificationType.INFORMATION));
-        }
 
         BorderLayoutPanel pluginsTablePanel = new BorderLayoutPanel();
 
@@ -263,7 +252,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     if (pluginRecord != null) {
                         int downloads = pluginRecord.downloads();
                         Integer savedDownloads = savedDownloadsMap.getOrDefault(ideaPluginDescriptor.getPluginId().getIdString(), downloads);
-                        return String.format("Downloads: %d (last checkpoint: %d %d%%)", downloads, savedDownloads, (downloads - savedDownloads) * 100 / savedDownloads);
+                        return String.format("Downloads: %d (last checkpoint: %d) %d change", downloads, savedDownloads, downloads  -savedDownloads);
                     }
                     return "Downloads";
                 } else if (column == PLUGIN_XML_COLUMN) {
@@ -573,6 +562,18 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     }
 
     void refresh() {
+        savedDownloadsMap.clear();
+        String downloadsMapJson = PropertiesComponent.getInstance().getValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, "{}");
+        ((Map<String, Integer>) gson.fromJson(downloadsMapJson, (new TypeToken<Map<String, Integer>>(){}).getType())).forEach((Object key, Object value) -> {
+            savedDownloadsMap.put(String.valueOf(key), Integer.valueOf(String.valueOf(value)));
+        });
+        if (savedDownloadsMap.isEmpty()) {
+            Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                    "Plugins explorer",
+                    "No saved download counts found.",
+                    NotificationType.INFORMATION));
+        }
+
         pluginIdToPluginRecordMap.clear();
         pluginsTableModel.setRowCount(0);
         IdeaPluginDescriptor[] ideaPluginDescriptors = PluginManagerCore.getPlugins();
