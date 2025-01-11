@@ -14,16 +14,19 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.tree.IElementType;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlTag;
 import com.intellij.psi.xml.XmlToken;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
     @Override
@@ -39,40 +42,41 @@ public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
                     if (psiFile != null) {
                         int offset = editor.getCaretModel().getCurrentCaret().getOffset();
                         PsiElement psiElement = psiFile.findElementAt(offset);
-                        if (psiElement instanceof XmlToken xmlToken) {
-                            IElementType tokenType = xmlToken.getTokenType();
-                            if ("XML_ATTRIBUTE_VALUE_TOKEN".equals(tokenType.toString())) {
-                                PsiElement parent = xmlToken.getParent();
-                                if (parent != null) {
-                                    PsiElement grandParent = parent.getParent();
-                                    if (grandParent instanceof XmlAttribute xmlAttribute) {
-                                        String attributeName = xmlAttribute.getName();
-                                        if ("qualifiedName".equals(attributeName)) {
-                                            try {
-                                                Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", psiElement.getText())));
-                                            } catch (IOException | URISyntaxException ignore) {
-                                            }
-                                        } else if ("name".equals(attributeName)) {
-                                            IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) ((JComponent) editor.getComponent().getParent()).getClientProperty(PluginsExplorerToolWindow.class.getSimpleName() + ".IdeaPluginDescriptor");
-                                            // TODO check if in extensionPoint tag
-                                            try {
-                                                Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", ideaPluginDescriptor.getPluginId().getIdString() + "." + psiElement.getText())));
-                                            } catch (IOException | URISyntaxException ignore) {
-                                            }
+                        PsiElement extensionPointPsiElement = PsiTreeUtil.findFirstParent(psiElement, (PsiElement parentPsiElement) -> {
+                            return parentPsiElement instanceof XmlTag xmlTag && xmlTag.getName().equals("extensionPoint");
+                        });
+                        if (extensionPointPsiElement != null) {
+                            XmlAttribute @Nullable [] xmlAttributes = PsiTreeUtil.getChildrenOfType(extensionPointPsiElement, XmlAttribute.class);
+                            if (xmlAttributes != null) {
+                                Arrays.stream(xmlAttributes).forEach((XmlAttribute xmlAttribute) -> {
+                                    if (xmlAttribute.getName().equals("qualifiedName")) {
+                                        try {
+                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", xmlAttribute.getValue())));
+                                        } catch (IOException | URISyntaxException ignore) {
+                                        }
+                                    } else if (xmlAttribute.getName().equals("name")) {
+                                        IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) ((JComponent) editor.getComponent().getParent()).getClientProperty(PluginsExplorerToolWindow.class.getSimpleName() + ".IdeaPluginDescriptor");
+                                        try {
+                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", ideaPluginDescriptor.getPluginId().getIdString() + "." + xmlAttribute.getValue())));
+                                        } catch (IOException | URISyntaxException ignore) {
                                         }
                                     }
-                                }
-                            } else if ("XML_NAME".equals(tokenType.toString()) && "<".equals(xmlToken.getPrevSibling().getText())) {
-                                PsiElement parent = xmlToken.getParent();
-                                if (parent != null) {
-                                    PsiElement grandParent = parent.getParent();
-                                    if (grandParent instanceof XmlTag xmlTag) {
-                                        if ("extensions".equals(xmlTag.getName())) {
-                                            String extensionName = "com.intellij." + xmlToken.getText();
-                                            try {
-                                                Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", extensionName)));
-                                            } catch (IOException | URISyntaxException ignore) {
-                                            }
+                                });
+                            }
+                        } else {
+                            PsiElement extensionsPsiElement = PsiTreeUtil.findFirstParent(psiElement, true, (PsiElement parentPsiElement) -> {
+                                return parentPsiElement instanceof XmlTag xmlTag && xmlTag.getName().equals("extensions");
+                            });
+                            if (extensionsPsiElement != null) {
+                                PsiElement extensionPsiElement = PsiTreeUtil.findFirstParent(psiElement, true, (PsiElement parentPsiElement) -> {
+                                    return parentPsiElement instanceof XmlTag;
+                                });
+                                if (extensionPsiElement != null) {
+                                    if (PsiTreeUtil.isAncestor(extensionsPsiElement, extensionPsiElement, true)) {
+                                        String extensionName = "com.intellij." + ((XmlTag) extensionPsiElement).getName();
+                                        try {
+                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", extensionName)));
+                                        } catch (IOException | URISyntaxException ignore) {
                                         }
                                     }
                                 }
@@ -99,30 +103,22 @@ public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
                     if (psiFile != null) {
                         int offset = editor.getCaretModel().getCurrentCaret().getOffset();
                         PsiElement psiElement = psiFile.findElementAt(offset);
-                        if (psiElement instanceof XmlToken xmlToken) {
-                            IElementType tokenType = xmlToken.getTokenType();
-                            if ("XML_ATTRIBUTE_VALUE_TOKEN".equals(tokenType.toString())) {
-                                PsiElement parent = xmlToken.getParent();
-                                if (parent != null) {
-                                    PsiElement grandParent = parent.getParent();
-                                    if (grandParent instanceof XmlAttribute xmlAttribute) {
-                                        String attributeName = xmlAttribute.getName();
-                                        if ("qualifiedName".equals(attributeName)) {
-                                            enabledAndVisible = true;
-                                        } else if ("name".equals(attributeName)) {
-                                            // TODO check if in extensionPoint tag
-                                            enabledAndVisible = true;
-                                        }
-                                    }
-                                }
-                            } else if ("XML_NAME".equals(tokenType.toString()) && "<".equals(xmlToken.getPrevSibling().getText())) {
-                                PsiElement parent = xmlToken.getParent();
-                                if (parent != null) {
-                                    PsiElement grandParent = parent.getParent();
-                                    if (grandParent instanceof XmlTag xmlTag) {
-                                        if ("extensions".equals(xmlTag.getName())) {
-                                            enabledAndVisible = true;
-                                        }
+                        PsiElement extensionPointPsiElement = PsiTreeUtil.findFirstParent(psiElement, (PsiElement parentPsiElement) -> {
+                            return parentPsiElement instanceof XmlTag xmlTag && xmlTag.getName().equals("extensionPoint");
+                        });
+                        if (extensionPointPsiElement != null) {
+                            enabledAndVisible = true;
+                        } else {
+                            PsiElement extensionsPsiElement = PsiTreeUtil.findFirstParent(psiElement, true, (PsiElement parentPsiElement) -> {
+                                return parentPsiElement instanceof XmlTag xmlTag && xmlTag.getName().equals("extensions");
+                            });
+                            if (extensionsPsiElement != null) {
+                                PsiElement extensionPsiElement = PsiTreeUtil.findFirstParent(psiElement, true, (PsiElement parentPsiElement) -> {
+                                    return parentPsiElement instanceof XmlTag;
+                                });
+                                if (extensionPsiElement != null) {
+                                    if (PsiTreeUtil.isAncestor(extensionsPsiElement, extensionPsiElement, true)) {
+                                        enabledAndVisible = true;
                                     }
                                 }
                             }
