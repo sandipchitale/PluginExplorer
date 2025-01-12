@@ -38,9 +38,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableRowSorter;
+import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -158,6 +156,25 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             int n2 = Integer.parseInt(o2.toString());
 
             return Integer.compare(n1, n2);
+        }
+    }
+
+
+    private static class IconHeaderRenderer extends DefaultTableCellRenderer {
+        private final Icon icon;
+
+        public IconHeaderRenderer(Icon icon) {
+            this.icon = icon;
+            setHorizontalAlignment(CENTER);
+            setVerticalAlignment(CENTER);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            setIcon(icon);
+            setText(null); // Remove text
+            return this;
         }
     }
 
@@ -530,11 +547,13 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon));
 
         column = this.pluginsTable.getColumnModel().getColumn(PLUGIN_XML_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.FileTypes.Xml));
 
         column = this.pluginsTable.getColumnModel().getColumn(ID_COLUMN);
 //        column.setMinWidth(250);
@@ -555,21 +574,26 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.Hierarchy.Supertypes));
 
         column = this.pluginsTable.getColumnModel().getColumn(DEPENDEES_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.Hierarchy.Subtypes));
 
         column = this.pluginsTable.getColumnModel().getColumn(SOURCECODE_URL_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.Actions.PrettyPrint));
+
 
         column = this.pluginsTable.getColumnModel().getColumn(BUGTRACKER_URL_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.Actions.StartDebugger));
 
         column = this.pluginsTable.getColumnModel().getColumn(ENABLED_COLUMN);
         column.setMinWidth(40);
@@ -590,11 +614,13 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.General.Information));
 
         column = this.pluginsTable.getColumnModel().getColumn(OPEN_PATH_COLUMN);
         column.setMinWidth(40);
         column.setWidth(40);
         column.setMaxWidth(40);
+        column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.Actions.MenuOpen));
 
         pluginsTableColumnSelector = new JTableColumnSelector(
                 Stream.of(
