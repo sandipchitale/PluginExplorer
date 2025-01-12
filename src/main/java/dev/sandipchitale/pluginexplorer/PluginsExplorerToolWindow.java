@@ -38,7 +38,10 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
-import javax.swing.table.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -68,6 +71,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final Pattern PLUGIN_URL_PATTERN = Pattern.compile("^/plugin/(\\d+)-.+$");
 
     private final Project project;
+
+    private Map<PluginId, Set<PluginId>> dependees = new HashMap<>();
     private final DefaultTableModel pluginsTableModel;
 
     Map<PluginId, Set<PluginId>> pluginDependees = new HashMap<>();
@@ -416,12 +421,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 }
                             };
                             dependenciesList.setCellRenderer(dependenciesListCellRenderer);
-                            int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
-                                    dependenciesList,
-                                    "Go to Dependency",
-                                    JOptionPane.YES_NO_OPTION,
-                                    JOptionPane.PLAIN_MESSAGE);
-                            if (option == JOptionPane.YES_OPTION) {
+
+                            Runnable gotoDependency = () -> {
                                 IdeaPluginDependency ideaPluginDependency = dependenciesList.getSelectedValue();
                                 if (ideaPluginDependency != null) {
                                     for (int i = 0; i < pluginsTableModel.getRowCount(); i++) {
@@ -434,6 +435,41 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                         }
                                     }
                                 }
+                            };
+
+                            dependenciesList.addMouseListener(new MouseAdapter() {
+                                @Override
+                                public void mouseClicked(MouseEvent mouseEvent) {
+                                    if (mouseEvent.getClickCount() == 2 && mouseEvent.getButton() == MouseEvent.BUTTON1) {
+                                        Window windowAncestor = SwingUtilities.getWindowAncestor(dependenciesList);
+                                        if (windowAncestor != null) {
+                                            windowAncestor.setVisible(false);
+                                            gotoDependency.run();
+                                        }
+                                    }
+                                }
+                            });
+
+                            dependenciesList.addKeyListener(new KeyAdapter() {
+                                @Override
+                                public void keyPressed(KeyEvent keyEvent) {
+                                    if (keyEvent.getKeyCode() == KeyEvent.VK_ENTER) {
+                                        Window windowAncestor = SwingUtilities.getWindowAncestor(dependenciesList);
+                                        if (windowAncestor != null) {
+                                            windowAncestor.setVisible(false);
+                                            gotoDependency.run();
+                                        }
+                                    }
+                                }
+                            });
+
+                            int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
+                                    dependenciesList,
+                                    "Go to Dependency",
+                                    JOptionPane.YES_NO_OPTION,
+                                    JOptionPane.PLAIN_MESSAGE);
+                            if (option == JOptionPane.YES_OPTION) {
+                                gotoDependency.run();
                             }
                         } else if (column == DEPENDEES_COLUMN) {
                             Set<PluginId> dependeePluginIds = pluginDependees.get(pluginId);
@@ -442,22 +478,18 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             }
                             DefaultListModel<PluginId> dependencyListModel = new DefaultListModel<>();
                             dependencyListModel.addAll(dependeePluginIds);
-                            JBList<PluginId> dependenciesList = new JBList<>(dependencyListModel);
-                            dependenciesList.setFont(JBFont.create(new Font(Font.MONOSPACED, Font.PLAIN, 13)));
+                            JBList<PluginId> dependeeList = new JBList<>(dependencyListModel);
+                            dependeeList.setFont(JBFont.create(new Font(Font.MONOSPACED, Font.PLAIN, 13)));
                             ColoredListCellRenderer<PluginId> dependenciesListCellRenderer = new ColoredListCellRenderer<>() {
                                 @Override
                                 protected void customizeCellRenderer(@NotNull JList list, PluginId pluginId, int index, boolean selected, boolean hasFocus) {
                                     append(String.format("%-60s", pluginId.getIdString()));
                                 }
                             };
-                            dependenciesList.setCellRenderer(dependenciesListCellRenderer);
-                            int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
-                                    dependenciesList,
-                                    "Go to Dependee",
-                                    JOptionPane.YES_NO_OPTION,
-                                    JOptionPane.PLAIN_MESSAGE);
-                            if (option == JOptionPane.YES_OPTION) {
-                                PluginId dependeedPluginId = dependenciesList.getSelectedValue();
+                            dependeeList.setCellRenderer(dependenciesListCellRenderer);
+
+                            Runnable gotoDependee = () -> {
+                                PluginId dependeedPluginId = dependeeList.getSelectedValue();
                                 if (dependeedPluginId != null) {
                                     for (int i = 0; i < pluginsTableModel.getRowCount(); i++) {
                                         IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(i, DESCRIPTOR_COLUMN);
@@ -469,6 +501,41 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                         }
                                     }
                                 }
+                            };
+
+                            dependeeList.addMouseListener(new MouseAdapter() {
+                                @Override
+                                public void mouseClicked(MouseEvent mouseEvent) {
+                                    if (mouseEvent.getClickCount() == 2 && mouseEvent.getButton() == MouseEvent.BUTTON1) {
+                                        Window windowAncestor = SwingUtilities.getWindowAncestor(dependeeList);
+                                        if (windowAncestor != null) {
+                                            windowAncestor.setVisible(false);
+                                            gotoDependee.run();
+                                        }
+                                    }
+                                }
+                            });
+
+                            dependeeList.addKeyListener(new KeyAdapter() {
+                                @Override
+                                public void keyPressed(KeyEvent keyEvent) {
+                                    if (keyEvent.getKeyCode() == KeyEvent.VK_ENTER) {
+                                        Window windowAncestor = SwingUtilities.getWindowAncestor(dependeeList);
+                                        if (windowAncestor != null) {
+                                            windowAncestor.setVisible(false);
+                                            gotoDependee.run();
+                                        }
+                                    }
+                                }
+                            });
+
+                            int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
+                                    dependeeList,
+                                    "Go to Dependee",
+                                    JOptionPane.YES_NO_OPTION,
+                                    JOptionPane.PLAIN_MESSAGE);
+                            if (option == JOptionPane.YES_OPTION) {
+                                gotoDependee.run();
                             }
                         } else if (column == PLUGIN_XML_COLUMN) {
                             File libDir = ideaPluginDescriptor.getPluginPath().resolve("lib").toFile();
@@ -684,6 +751,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
         pluginIdToPluginRecordMap.clear();
         pluginsTableModel.setRowCount(0);
+        dependees.clear();
         IdeaPluginDescriptor[] ideaPluginDescriptors = PluginManagerCore.getPlugins();
         Arrays.sort(ideaPluginDescriptors, Comparator.comparing(IdeaPluginDescriptor::getName));
 
