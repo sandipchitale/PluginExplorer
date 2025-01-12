@@ -26,10 +26,13 @@ import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.openapi.wm.ex.ToolWindowEx;
+import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.SearchTextField;
+import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.table.JBTable;
+import com.intellij.util.ui.JBFont;
 import com.intellij.util.ui.components.BorderLayoutPanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -371,15 +374,40 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 }
                             }
                         } else if (column == DEPENDENCIES_COLUMN) {
-                            StringBuilder stringBuilder = new StringBuilder();
-                            List<IdeaPluginDependency> ideaPluginDescriptorDependencies = ideaPluginDescriptor.getDependencies();
-                            for (IdeaPluginDependency ideaPluginDescriptorDependency : ideaPluginDescriptorDependencies) {
-                                stringBuilder.append(String.format("PluginID: %-50s Optional: %s\n", ideaPluginDescriptorDependency.getPluginId(), ideaPluginDescriptorDependency.isOptional()));
+                            List<IdeaPluginDependency> ideaPluginDependencies = ideaPluginDescriptor.getDependencies();
+                            if (ideaPluginDependencies.isEmpty()) {
+                                return;
                             }
-                            JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
-                                    new JScrollPane(new JBTextArea(stringBuilder.toString(), 20, 80)),
-                                    "Dependencies",
+                            DefaultListModel<IdeaPluginDependency> dependencyListModel = new DefaultListModel<>();
+                            dependencyListModel.addAll(ideaPluginDependencies);
+                            JBList<IdeaPluginDependency> dependenciesList = new JBList<>(dependencyListModel);
+                            dependenciesList.setFont(JBFont.create(new Font(Font.MONOSPACED, Font.PLAIN, 13)));
+                            ColoredListCellRenderer<IdeaPluginDependency> dependenciesListCellRenderer = new ColoredListCellRenderer<>() {
+                                @Override
+                                protected void customizeCellRenderer(@NotNull JList list, IdeaPluginDependency ideaPluginDependency, int index, boolean selected, boolean hasFocus) {
+                                    append(String.format("%-60s %s", ideaPluginDependency.getPluginId().getIdString(), (ideaPluginDependency.isOptional() ? " [Optional]" : "")));
+                                }
+                            };
+                            dependenciesList.setCellRenderer(dependenciesListCellRenderer);
+                            int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
+                                    dependenciesList,
+                                    "Go to Dependency",
+                                    JOptionPane.YES_NO_OPTION,
                                     JOptionPane.PLAIN_MESSAGE);
+                            if (option == JOptionPane.YES_OPTION) {
+                                IdeaPluginDependency ideaPluginDependency = dependenciesList.getSelectedValue();
+                                if (ideaPluginDependency != null) {
+                                    for (int i = 0; i < pluginsTableModel.getRowCount(); i++) {
+                                        IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(i, DESCRIPTOR_COLUMN);
+                                        if (pluginDescriptor.getPluginId().equals(ideaPluginDependency.getPluginId())) {
+                                            int viewRowIndex = pluginsTable.convertRowIndexToView(i);
+                                            pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
+                                            pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                         } else if (column == PLUGIN_XML_COLUMN) {
                             File libDir = ideaPluginDescriptor.getPluginPath().resolve("lib").toFile();
                             if (libDir.exists()) {
