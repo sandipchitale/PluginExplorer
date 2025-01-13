@@ -429,8 +429,15 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                         IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(i, DESCRIPTOR_COLUMN);
                                         if (pluginDescriptor.getPluginId().equals(ideaPluginDependency.getPluginId())) {
                                             int viewRowIndex = pluginsTable.convertRowIndexToView(i);
-                                            pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
-                                            pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
+                                            if (viewRowIndex != -1) {
+                                                pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
+                                                pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
+                                            } else {
+                                                Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                                                        "Plugins explorer",
+                                                        String.format("Dependency %s may not be visible. May have to clear the filter.", ideaPluginDependency.getPluginId().getIdString()),
+                                                        NotificationType.INFORMATION));
+                                            }
                                             break;
                                         }
                                     }
@@ -465,7 +472,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
                             int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
                                     dependenciesList,
-                                    "Go to Dependency",
+                                    "Go to selected dependency of " + pluginId.getIdString(),
                                     JOptionPane.YES_NO_OPTION,
                                     JOptionPane.PLAIN_MESSAGE);
                             if (option == JOptionPane.YES_OPTION) {
@@ -495,8 +502,17 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                         IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(i, DESCRIPTOR_COLUMN);
                                         if (pluginDescriptor.getPluginId().equals(dependeedPluginId)) {
                                             int viewRowIndex = pluginsTable.convertRowIndexToView(i);
-                                            pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
-                                            pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
+
+                                            if (viewRowIndex != -1) {
+                                                pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
+                                                pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
+                                            } else {
+                                                Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                                                        "Plugins explorer",
+                                                        String.format("Dependee %s may not be visible. Clear the filter.", dependeedPluginId.getIdString()),
+                                                        NotificationType.INFORMATION));
+                                            }
+
                                             break;
                                         }
                                     }
@@ -531,7 +547,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
                             int option = JOptionPane.showConfirmDialog(WindowManager.getInstance().getFrame(project),
                                     dependeeList,
-                                    "Go to Dependee",
+                                    "Go to selected dependee of " + pluginId.getIdString(),
                                     JOptionPane.YES_NO_OPTION,
                                     JOptionPane.PLAIN_MESSAGE);
                             if (option == JOptionPane.YES_OPTION) {
