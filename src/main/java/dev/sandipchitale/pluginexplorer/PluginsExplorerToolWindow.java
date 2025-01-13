@@ -433,10 +433,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
                                                 pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
                                             } else {
-                                                Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
-                                                        "Plugins explorer",
-                                                        String.format("Dependency %s may not be visible. May have to clear the filter.", ideaPluginDependency.getPluginId().getIdString()),
-                                                        NotificationType.INFORMATION));
+                                                SwingUtilities.invokeLater(() -> {
+                                                    Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                                                            "Plugins explorer",
+                                                            String.format("Dependency %s of %smay not be visible. May have to clear the filter.",
+                                                                    ideaPluginDependency.getPluginId().getIdString(),
+                                                                    pluginId.getIdString()),
+                                                            NotificationType.INFORMATION));
+                                                });
                                             }
                                             break;
                                         }
@@ -507,10 +511,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 pluginsTable.setRowSelectionInterval(viewRowIndex, viewRowIndex);
                                                 pluginsTable.scrollRectToVisible(pluginsTable.getCellRect(viewRowIndex, 0, true));
                                             } else {
-                                                Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
-                                                        "Plugins explorer",
-                                                        String.format("Dependee %s may not be visible. Clear the filter.", dependeedPluginId.getIdString()),
-                                                        NotificationType.INFORMATION));
+                                                SwingUtilities.invokeLater(() -> {
+                                                    Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
+                                                            "Plugins explorer",
+                                                            String.format("Dependee %s of %s may not be visible. Clear the filter.",
+                                                                    dependeedPluginId.getIdString(),
+                                                                    pluginId.getIdString()),
+                                                            NotificationType.INFORMATION));
+                                                });
                                             }
 
                                             break;
