@@ -75,7 +75,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private Map<PluginId, Set<PluginId>> dependees = new HashMap<>();
     private final DefaultTableModel pluginsTableModel;
 
-    Map<PluginId, Set<PluginId>> pluginDependees = new HashMap<>();
+    private record PluginIdOptional(PluginId pluginId, boolean isOptional) {}
+
+    Map<PluginId, Set<PluginIdOptional>> pluginDependees = new HashMap<>();
 
     private final JBTable pluginsTable;
 
@@ -487,28 +489,28 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 gotoDependency.run();
                             }
                         } else if (column == DEPENDEES_COLUMN) {
-                            Set<PluginId> dependeePluginIds = pluginDependees.get(pluginId);
+                            Set<PluginIdOptional> dependeePluginIds = pluginDependees.get(pluginId);
                             if (dependeePluginIds == null) {
                                 return;
                             }
-                            DefaultListModel<PluginId> dependencyListModel = new DefaultListModel<>();
+                            DefaultListModel<PluginIdOptional> dependencyListModel = new DefaultListModel<>();
                             dependencyListModel.addAll(dependeePluginIds);
-                            JBList<PluginId> dependeeList = new JBList<>(dependencyListModel);
+                            JBList<PluginIdOptional> dependeeList = new JBList<>(dependencyListModel);
                             dependeeList.setFont(JBFont.create(new Font(Font.MONOSPACED, Font.PLAIN, 13)));
-                            ColoredListCellRenderer<PluginId> dependenciesListCellRenderer = new ColoredListCellRenderer<>() {
+                            ColoredListCellRenderer<PluginIdOptional> dependenciesListCellRenderer = new ColoredListCellRenderer<>() {
                                 @Override
-                                protected void customizeCellRenderer(@NotNull JList list, PluginId pluginId, int index, boolean selected, boolean hasFocus) {
-                                    append(String.format("%-60s", pluginId.getIdString()));
+                                protected void customizeCellRenderer(@NotNull JList list, PluginIdOptional pluginIdOptional, int index, boolean selected, boolean hasFocus) {
+                                    append(String.format("%-60s %s", pluginIdOptional.pluginId().getIdString(), (pluginIdOptional.isOptional() ? " [Optional]" : "")));
                                 }
                             };
                             dependeeList.setCellRenderer(dependenciesListCellRenderer);
 
                             Runnable gotoDependee = () -> {
-                                PluginId dependeedPluginId = dependeeList.getSelectedValue();
-                                if (dependeedPluginId != null) {
+                                PluginIdOptional dependeedPluginIdOptional = dependeeList.getSelectedValue();
+                                if (dependeedPluginIdOptional != null) {
                                     for (int i = 0; i < pluginsTableModel.getRowCount(); i++) {
                                         IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(i, DESCRIPTOR_COLUMN);
-                                        if (pluginDescriptor.getPluginId().equals(dependeedPluginId)) {
+                                        if (pluginDescriptor.getPluginId().equals(dependeedPluginIdOptional.pluginId())) {
                                             int viewRowIndex = pluginsTable.convertRowIndexToView(i);
 
                                             if (viewRowIndex != -1) {
@@ -519,7 +521,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                     Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
                                                             "Plugins explorer",
                                                             String.format("Dependee %s of %s may not be visible. Clear the filter.",
-                                                                    dependeedPluginId.getIdString(),
+                                                                    dependeedPluginIdOptional.pluginId().getIdString(),
                                                                     pluginId.getIdString()),
                                                             NotificationType.INFORMATION));
                                                 });
@@ -884,7 +886,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             List<IdeaPluginDependency> ideaPluginDependencies = ideaPluginDescriptor.getDependencies();
             for (IdeaPluginDependency ideaPluginDependency : ideaPluginDependencies) {
                 pluginDependees.computeIfAbsent(ideaPluginDependency.getPluginId(),
-                        (PluginId pluginId) -> new HashSet<>()).add(ideaPluginDescriptor.getPluginId());
+                        (PluginId pluginId) -> new HashSet<>()).add(new PluginIdOptional(ideaPluginDescriptor.getPluginId(), ideaPluginDependency.isOptional()));
             }
 
             String idString = ideaPluginDescriptor.getPluginId().getIdString();
