@@ -90,6 +90,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
     private static final int ID_COLUMN = index++;
     private static final int VERSION_COLUMN = index++;
+    private static final int SINCE_COLUMN = index++;
+    private static final int UNTIL_COLUMN = index++;
     private static final int DOWNLOADS_COLUMN = index++;
     private static final int PLUGIN_XML_COLUMN = index++;
     private static final int DEPENDENCIES_COLUMN = index++;
@@ -99,8 +101,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final int ENABLED_COLUMN = index++;
     private static final int CATEGORY_COLUMN = index++;
     private static final int VENDOR_COLUMN = index++;
-    // private static final int SINCE_COLUMN = index++;
-    // private static final int UNTIL_COLUMN = index++;
     private static final int INFO_COLUMN = index++;
     private static final int PATH_COLUMN = index++;
     private static final int OPEN_PATH_COLUMN = index++;
@@ -112,6 +112,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ID_COLUMN] = "Id";
         COLUMNS[OPEN_ON_MARKETPLACE_COLUMN] = "";
         COLUMNS[VERSION_COLUMN] = "Version";
+        COLUMNS[SINCE_COLUMN] = "Since";
+        COLUMNS[UNTIL_COLUMN] = "Until";
         COLUMNS[DOWNLOADS_COLUMN] = "Downloads";
         COLUMNS[PLUGIN_XML_COLUMN] = "";
         COLUMNS[DEPENDENCIES_COLUMN] = "";
@@ -121,8 +123,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         COLUMNS[ENABLED_COLUMN] = "";
         COLUMNS[CATEGORY_COLUMN] = "Category";
         COLUMNS[VENDOR_COLUMN] = "Vendor";
-//        COLUMNS[SINCE_COLUMN] = "Since";
-//        COLUMNS[UNTIL_COLUMN] = "Until";
         COLUMNS[INFO_COLUMN] = "";
         COLUMNS[PATH_COLUMN] = "Path";
         COLUMNS[OPEN_PATH_COLUMN] = "";
@@ -226,6 +226,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
                 if (column == OPEN_ON_MARKETPLACE_COLUMN) return PluginsExplorerIcons.jetbrainsMarketplaceLogoIcon;
                 if (column == VERSION_COLUMN) return ideaPluginDescriptor.getVersion();
+                if (column == SINCE_COLUMN) return ideaPluginDescriptor.getSinceBuild();
+                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
                 if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
@@ -243,8 +245,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
                 if (column == CATEGORY_COLUMN) return ideaPluginDescriptor.getDisplayCategory();
                 if (column == VENDOR_COLUMN) return ideaPluginDescriptor.getVendor();
-//                if (column == SINCE_COLUMN) return ideaPluginDescriptor.getSinceBuild();
-//                if (column == UNTIL_COLUMN) return ideaPluginDescriptor.getUntilBuild();
                 if (column == INFO_COLUMN) return AllIcons.General.Information;
                 if (column == OPEN_PATH_COLUMN) return AllIcons.Actions.MenuOpen;
                 if (column == PATH_COLUMN)
@@ -279,6 +279,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return String.format("Since Build: %s - Until Build: %s",
                             Objects.requireNonNullElse(sinceBuild, "N/A"),
                             Objects.requireNonNullElse(untilBuild, "N/A"));
+                } else if (column == SINCE_COLUMN) {
+                    return "Since";
+                } else if (column == UNTIL_COLUMN) {
+                    return "Until";
                 } else if (column == DOWNLOADS_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
@@ -652,9 +656,19 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 //        column.setMaxWidth(250);
 
         column = this.pluginsTable.getColumnModel().getColumn(VERSION_COLUMN);
-        column.setMinWidth(180);
-        column.setWidth(180);
-        column.setMaxWidth(180);
+        column.setMinWidth(170);
+        column.setWidth(170);
+        column.setMaxWidth(170);
+
+        column = this.pluginsTable.getColumnModel().getColumn(SINCE_COLUMN);
+        column.setMinWidth(150);
+        column.setWidth(150);
+        column.setMaxWidth(150);
+
+        column = this.pluginsTable.getColumnModel().getColumn(UNTIL_COLUMN);
+        column.setMinWidth(150);
+        column.setWidth(150);
+        column.setMaxWidth(150);
 
         column = this.pluginsTable.getColumnModel().getColumn(DOWNLOADS_COLUMN);
         column.setMinWidth(120);
@@ -719,6 +733,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                         "Open on Marketplace",
                         "ID",
                         "Version",
+                        "Since",
+                        "Until",
                         "Downloads",
                         "Open Plugin.xml",
                         "Show Dependencies",
@@ -734,6 +750,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 ).toList());
         pluginsTableColumnSelector.install(pluginsTable);
         // Hide path column
+        pluginsTableColumnSelector.setColumnVisible(SINCE_COLUMN, false);
+        pluginsTableColumnSelector.setColumnVisible(UNTIL_COLUMN, false);
         pluginsTableColumnSelector.setColumnVisible(PATH_COLUMN, false);
 
         pluginsTablePanel.addToCenter(ScrollPaneFactory.createScrollPane(pluginsTable));
