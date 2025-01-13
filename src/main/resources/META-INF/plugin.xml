@@ -24,10 +24,8 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Dependencies column icon change</li>
-            <li>Dependees column</li>
-            <li>Go to dependencies</li>
-            <li>Go to dependees</li>
+            <li>Show change notes.</li>
+            <li>Show tags.</li>
         </ul>
         <h2>Features</h2>
         <ul>
@@ -42,6 +40,10 @@
             <li>Sort download count numerically.</li>
             <li>Support control click navigation to .class files for types referenced in plugin.xml. The .class files are decompiled by the IDE.</li>
             <li>Show in IntelliJ Platform Explorer action - context menu action to show the extension point usage in IntelliJ Platform Explorer.<li>
+            <li>Dependencies column icon change</li>
+            <li>Dependees column</li>
+            <li>Go to dependencies</li>
+            <li>Go to dependees</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>

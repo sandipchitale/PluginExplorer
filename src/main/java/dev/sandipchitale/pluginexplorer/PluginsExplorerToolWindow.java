@@ -1,9 +1,6 @@
 package dev.sandipchitale.pluginexplorer;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.intellij.icons.AllIcons;
 import com.intellij.ide.plugins.IdeaPluginDependency;
@@ -143,7 +140,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 String bugtrackerUrl,
                                 int downloads,
                                 String icon,
-                                String information) {
+                                String information,
+                                List<String> tags) {
     }
 
     Map<PluginId, PluginRecord> pluginIdToPluginRecordMap = new ConcurrentHashMap<>();
@@ -276,11 +274,12 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     }
                     return "Double-click to view Plugin description.";
                 } else if (column == VERSION_COLUMN) {
-                    String sinceBuild = ideaPluginDescriptor.getSinceBuild();
-                    String untilBuild = ideaPluginDescriptor.getUntilBuild();
-                    return String.format("Since Build: %s - Until Build: %s",
-                            Objects.requireNonNullElse(sinceBuild, "N/A"),
-                            Objects.requireNonNullElse(untilBuild, "N/A"));
+                    return ideaPluginDescriptor.getChangeNotes();
+//                    String sinceBuild = ideaPluginDescriptor.getSinceBuild();
+//                    String untilBuild = ideaPluginDescriptor.getUntilBuild();
+//                    return String.format("Since Build: %s - Until Build: %s",
+//                            Objects.requireNonNullElse(sinceBuild, "N/A"),
+//                            Objects.requireNonNullElse(untilBuild, "N/A"));
                 } else if (column == SINCE_COLUMN) {
                     return "Since";
                 } else if (column == UNTIL_COLUMN) {
@@ -307,6 +306,11 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     return "Double-click to open bug tracker URI if available.";
                 } else if (column == ENABLED_COLUMN) {
                     return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
+                } else if (column == CATEGORY_COLUMN) {
+                    PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
+                    if (pluginRecord != null) {
+                        return String.format("Tags:<br/><br/>%s", pluginRecord.tags().toString().replace("[", "").replace("]", "").replace(", ", "<br/>"));
+                    }
                 } else if (column == INFO_COLUMN) {
                     return "Double-click to see raw information";
                 } else if (column == PATH_COLUMN) {
@@ -357,6 +361,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     int column = pluginsTable.columnAtPoint(p);
                     column = pluginsTableColumnSelector.convertColumnIndexToModel(column);
                     if (column == NAME_COLUMN ||
+                            column == VERSION_COLUMN ||
                             column == OPEN_ON_MARKETPLACE_COLUMN ||
                             column == DEPENDENCIES_COLUMN ||
                             column == DEPENDEES_COLUMN ||
@@ -410,6 +415,32 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                     desktop.browse(uri);
                                 } catch (IOException ignore) {
                                 }
+                            }
+                        } if (column == VERSION_COLUMN) {
+                            String changeNotes = ideaPluginDescriptor.getChangeNotes();
+                            if (changeNotes != null) {
+                                changeNotes = String.format("<html><head></head><body>%s</body></html>", changeNotes);
+
+                                JEditorPane editorPane = new JEditorPane("text/html", changeNotes);
+                                editorPane.setEditable(false);
+                                editorPane.setPreferredSize(new Dimension(700, 600));
+                                editorPane.addHyperlinkListener((HyperlinkEvent hyperlinkEvent) -> {
+                                    if (hyperlinkEvent.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                                        URL url = hyperlinkEvent.getURL();
+                                        if (url.getProtocol().startsWith("http")) {
+                                            try {
+                                                Desktop.getDesktop().browse(url.toURI());
+                                            } catch (IOException | URISyntaxException ignore) {
+                                            }
+                                        }
+                                    }
+                                });
+                                editorPane.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+                                JOptionPane.showMessageDialog(WindowManager.getInstance().getFrame(project),
+                                        ScrollPaneFactory.createScrollPane(editorPane),
+                                        "Plugin changeNotes",
+                                        JOptionPane.PLAIN_MESSAGE);
                             }
                         } else if (column == DEPENDENCIES_COLUMN) {
                             List<IdeaPluginDependency> ideaPluginDependencies = ideaPluginDescriptor.getDependencies();
@@ -854,6 +885,13 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 String bugtrackerUrl = urls.getAsJsonPrimitive("bugtrackerUrl").getAsString();
                                                 JsonPrimitive iconObject = jsonObject.getAsJsonPrimitive("icon");
                                                 String icon = iconObject == null ? null : iconObject.getAsString();
+                                                List<String> tags = new ArrayList<>();
+                                                JsonArray tagsJsonArray = jsonObject.getAsJsonArray("tags");
+                                                if (tagsJsonArray != null) {
+                                                    tagsJsonArray.forEach((JsonElement jsonElement) -> {
+                                                        tags.add(((JsonObject) jsonElement).getAsJsonPrimitive("name").getAsString());
+                                                    });
+                                                }
                                                 PluginRecord pluginRecord = new PluginRecord(pr.value(),
                                                         pr.url(),
                                                         pr.organization,
@@ -862,7 +900,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                         bugtrackerUrl,
                                                         downloads,
                                                         icon,
-                                                        gson.toJson(jsonObject)
+                                                        gson.toJson(jsonObject),
+                                                        tags
                                                 );
                                                 currentDownloadsMap.put(pluginId.getIdString(), downloads);
                                                 pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
