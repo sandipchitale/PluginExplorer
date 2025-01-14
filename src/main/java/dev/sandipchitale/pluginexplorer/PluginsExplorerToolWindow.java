@@ -69,10 +69,10 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     private final Project project;
 
-    private Map<PluginId, Set<PluginId>> dependees = new HashMap<>();
     private final DefaultTableModel pluginsTableModel;
 
-    private record PluginIdOptional(PluginId pluginId, boolean isOptional) {}
+    record PluginIdOptional(PluginId pluginId, boolean isOptional) {
+    }
 
     Map<PluginId, Set<PluginIdOptional>> pluginDependees = new HashMap<>();
 
@@ -83,7 +83,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
     private final SearchTextField pluginsSearchTextField;
 
-    private static final int DESCRIPTOR_COLUMN = -1;
+    static final int DESCRIPTOR_COLUMN = -1;
     private static int index = 0;
     private static final int NAME_COLUMN = index++;
     private static final int OPEN_ON_MARKETPLACE_COLUMN = index++;
@@ -416,7 +416,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 } catch (IOException ignore) {
                                 }
                             }
-                        } if (column == VERSION_COLUMN) {
+                        }
+                        if (column == VERSION_COLUMN) {
                             String changeNotes = ideaPluginDescriptor.getChangeNotes();
                             if (changeNotes != null) {
                                 changeNotes = String.format("<html><head></head><body>%s</body></html>", changeNotes);
@@ -797,15 +798,29 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         CheckpointDownloadsAction checkpointDownloads = (CheckpointDownloadsAction) actionManager.getAction("CheckpointDownloads");
         checkpointDownloads.setPluginsExplorerToolWindow(this);
 
+        PluginsDependenciesExplorerAction pluginsDependenciesExplorerAction = (PluginsDependenciesExplorerAction) actionManager.getAction("PluginsDependenciesExplorer");
+        pluginsDependenciesExplorerAction.setPluginsExplorerToolWindow(this);
+
         GotoPluginsAction gotoPlugins = (GotoPluginsAction) actionManager.getAction("GotoPlugins");
         gotoPlugins.setPluginsExplorerToolWindow(this);
 
         RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
         refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
 
-        Objects.requireNonNull(pluginsExplorer).setTitleActions(java.util.List.of(checkpointDownloads, gotoPlugins, refreshPluginsExplorerAction));
+        Objects.requireNonNull(pluginsExplorer).setTitleActions(List.of(checkpointDownloads,
+                pluginsDependenciesExplorerAction,
+                gotoPlugins,
+                refreshPluginsExplorerAction));
 
         refresh();
+    }
+
+    DefaultTableModel getPluginsTableModel() {
+        return pluginsTableModel;
+    }
+
+    Map<PluginId, Set<PluginIdOptional>> getPluginDependees() {
+        return pluginDependees;
     }
 
     void refresh() {
@@ -826,7 +841,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
 
         pluginIdToPluginRecordMap.clear();
         pluginsTableModel.setRowCount(0);
-        dependees.clear();
         IdeaPluginDescriptor[] ideaPluginDescriptors = PluginManagerCore.getPlugins();
         Arrays.sort(ideaPluginDescriptors, Comparator.comparing(IdeaPluginDescriptor::getName));
 

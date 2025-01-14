@@ -32,6 +32,8 @@
             <li>Dependees column</li>
             <li>Go to dependencies</li>
             <li>Go to dependees</li>
+            <li>Show change notes.</li>
+            <li>Show tags.</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
@@ -46,8 +48,7 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Show change notes.</li>
-            <li>Show tags.</li>
+            <li>Dependencies and Dependees exploration dialog.</li>
         </ul>
         <h2>Bug Fixes</h2>
         <ul>
@@ -77,6 +78,11 @@
                 class="dev.sandipchitale.pluginexplorer.CheckpointDownloadsAction"
                 description="Checkpoint download counts"
                 icon="AllIcons.Actions.Download">
+        </action>
+        <action id="PluginsDependenciesExplorer"
+                class="dev.sandipchitale.pluginexplorer.PluginsDependenciesExplorerAction"
+                description="Plugins dependencies"
+                icon="AllIcons.Toolwindows.ToolWindowHierarchy">
         </action>
         <action id="GotoPlugins"
                 class="dev.sandipchitale.pluginexplorer.GotoPluginsAction"
