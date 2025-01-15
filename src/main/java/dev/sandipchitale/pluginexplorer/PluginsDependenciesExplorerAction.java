@@ -8,6 +8,7 @@ import com.intellij.openapi.extensions.PluginId;
 import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.ScrollPaneFactory;
 import com.intellij.ui.components.JBList;
+import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.components.BorderLayoutPanel;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,12 +55,14 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
         JLabel dependenciesLabel = new JLabel("Dependencies", AllIcons.Hierarchy.Supertypes, SwingConstants.CENTER);
         dependenciesLabel.setHorizontalTextPosition(SwingConstants.LEFT);
         dependenciesPanelToolbar.addToCenter(dependenciesLabel);
-        JButton selectDependencyInPluginsList = new JButton(AllIcons.Actions.ArrowExpand);
-        selectDependencyInPluginsList.setEnabled(false);
-        dependenciesPanel.addToRight(selectDependencyInPluginsList);
+        JButton selectDependencyInPluginsListButton = new JButton(AllIcons.Actions.ArrowExpand);
+        selectDependencyInPluginsListButton.setEnabled(false);
+        selectDependencyInPluginsListButton.setToolTipText("Select in Plugins List --->");
+        dependenciesPanel.addToBottom(selectDependencyInPluginsListButton);
         dependenciesPanel.addToTop(dependenciesPanelToolbar);
         DefaultListModel<IdeaPluginDescriptorPluginIdName> dependenciesListModel = new DefaultListModel<>();
         JBList<IdeaPluginDescriptorPluginIdName> dependenciesList = new JBList<>(dependenciesListModel);
+        dependenciesList.setFixedCellWidth(340);
         dependenciesList.setCellRenderer(new PluginIdNameListCellRenderer(AllIcons.Hierarchy.Supertypes));
         dependenciesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         dependenciesPanel.addToCenter(ScrollPaneFactory.createScrollPane(dependenciesList));
@@ -68,12 +71,13 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
         BorderLayoutPanel pluginsPanel = new BorderLayoutPanel(5, 5);
 
         BorderLayoutPanel pluginsPanelToolbar = new BorderLayoutPanel();
-        pluginsPanelToolbar.addToLeft(new JLabel("<------ depends on ------|"));
-        pluginsPanelToolbar.addToCenter(new JLabel("Plugins", AllIcons.Nodes.Plugin, SwingConstants.CENTER));
-        pluginsPanelToolbar.addToRight(new JLabel("|<------ depends on ------|"));
+        pluginsPanelToolbar.addToLeft(new JLabel("<--- depend on "));
+        pluginsPanelToolbar.addToCenter(new JLabel("| Plugins |", AllIcons.Nodes.Plugin, SwingConstants.CENTER));
+        pluginsPanelToolbar.addToRight(new JLabel("<--- depend on "));
         pluginsPanel.addToTop(pluginsPanelToolbar);
         DefaultListModel<IdeaPluginDescriptorPluginIdName> pluginsListModel = new DefaultListModel<>();
         JBList<IdeaPluginDescriptorPluginIdName> pluginsList = new JBList<>(pluginsListModel);
+        pluginsList.setFixedCellWidth(340);
         pluginsList.setCellRenderer(new PluginIdNameListCellRenderer(AllIcons.Nodes.Plugin));
         pluginsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         pluginsPanel.addToCenter(ScrollPaneFactory.createScrollPane(pluginsList));
@@ -82,12 +86,14 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
         BorderLayoutPanel dependeesPanel = new BorderLayoutPanel(5, 5);
         BorderLayoutPanel dependeesPanelToolbar = new BorderLayoutPanel();
         dependeesPanelToolbar.addToCenter(new JLabel("Dependees", AllIcons.Hierarchy.Subtypes, SwingConstants.CENTER));
-        JButton selectDependeeInPluginsList = new JButton(AllIcons.Actions.ArrowCollapse);
-        selectDependeeInPluginsList.setEnabled(false);
-        dependeesPanel.addToLeft(selectDependeeInPluginsList);
+        JButton selectDependeeInPluginsListButton = new JButton(AllIcons.Actions.ArrowCollapse);
+        selectDependeeInPluginsListButton.setEnabled(false);
+        selectDependeeInPluginsListButton.setToolTipText("&lt;--- Select in Plugins List");
+        dependeesPanel.addToBottom(selectDependeeInPluginsListButton);
         dependeesPanel.addToTop(dependeesPanelToolbar);
         DefaultListModel<IdeaPluginDescriptorPluginIdName> dependeesListModel = new DefaultListModel<>();
         JBList<IdeaPluginDescriptorPluginIdName> dependeesList = new JBList<>(dependeesListModel);
+        dependeesList.setFixedCellWidth(340);
         dependeesList.setCellRenderer(new PluginIdNameListCellRenderer(AllIcons.Hierarchy.Subtypes));
         dependeesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         dependeesPanel.addToCenter(ScrollPaneFactory.createScrollPane(dependeesList));
@@ -127,7 +133,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
 
         dependenciesList.addListSelectionListener((ListSelectionEvent listSelectionEvent) -> {
             int selectedIndex = dependenciesList.getSelectedIndex();
-            selectDependencyInPluginsList.setEnabled(selectedIndex != -1);
+            selectDependencyInPluginsListButton.setEnabled(selectedIndex != -1);
 
         });
 
@@ -152,7 +158,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
             }
         });
 
-        selectDependencyInPluginsList.addActionListener((ActionEvent actionEvent) -> {
+        selectDependencyInPluginsListButton.addActionListener((ActionEvent actionEvent) -> {
             int selectedIndex = dependenciesList.getSelectedIndex();
             if (selectedIndex != -1) {
                 IdeaPluginDescriptorPluginIdName ideaPluginDescriptorPluginIdName = dependenciesList.getSelectedValue();
@@ -173,7 +179,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
 
         dependeesList.addListSelectionListener((ListSelectionEvent listSelectionEvent) -> {
             int selectedIndex = dependeesList.getSelectedIndex();
-            selectDependeeInPluginsList.setEnabled(selectedIndex != -1);
+            selectDependeeInPluginsListButton.setEnabled(selectedIndex != -1);
         });
 
         dependeesList.addMouseListener(new MouseAdapter() {
@@ -197,7 +203,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
             }
         });
 
-        selectDependeeInPluginsList.addActionListener((ActionEvent eactionEvent) -> {
+        selectDependeeInPluginsListButton.addActionListener((ActionEvent eactionEvent) -> {
             int selectedIndex = dependeesList.getSelectedIndex();
             if (selectedIndex != -1) {
                 IdeaPluginDescriptorPluginIdName ideaPluginDescriptorPluginIdName = dependeesList.getSelectedValue();
