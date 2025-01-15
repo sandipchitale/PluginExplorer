@@ -102,13 +102,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
             int selectedIndex = pluginsList.getSelectedIndex();
             dependeesListModel.clear();
             dependenciesListModel.clear();
-            if (selectedIndex == -1) {
-                int size = pluginsListModel.getSize();
-                for (int i = 0; i < size; i++) {
-                    dependeesListModel.addElement(pluginsListModel.get(i));
-                    dependenciesListModel.addElement(pluginsListModel.get(i));
-                }
-            } else {
+            if (selectedIndex != -1) {
                 IdeaPluginDescriptorPluginIdName ideaPluginDescriptorPluginIdName = pluginsListModel.get(selectedIndex);
                 Set<PluginId> dependees = null;
                 if (pluginDependees.get(ideaPluginDescriptorPluginIdName.pluginId()) != null) {
@@ -228,9 +222,7 @@ public class PluginsDependenciesExplorerAction extends PluginsExplorerAbstractAc
             IdeaPluginDescriptorPluginIdName pluginIdName = new IdeaPluginDescriptorPluginIdName(ideaPluginDescriptor,
                     ideaPluginDescriptor.getPluginId(),
                     ideaPluginDescriptor.getName());
-            dependeesListModel.add(i, pluginIdName);
             pluginsListModel.add(i, pluginIdName);
-            dependenciesListModel.add(i, pluginIdName);
         }
 
         JOptionPane.showMessageDialog(pluginsExplorerToolWindow.getContent(), panel, "Dependees Plugin Dependencies", JOptionPane.PLAIN_MESSAGE);
