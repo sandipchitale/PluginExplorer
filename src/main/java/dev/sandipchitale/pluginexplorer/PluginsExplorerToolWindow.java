@@ -416,8 +416,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 } catch (IOException ignore) {
                                 }
                             }
-                        }
-                        if (column == VERSION_COLUMN) {
+                        } else if (column == VERSION_COLUMN) {
                             String changeNotes = ideaPluginDescriptor.getChangeNotes();
                             if (changeNotes != null) {
                                 changeNotes = String.format("<html><head></head><body>%s</body></html>", changeNotes);

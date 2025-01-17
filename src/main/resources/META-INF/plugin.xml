@@ -52,6 +52,7 @@
         </ul>
         <h2>Bug Fixes</h2>
         <ul>
+            <li>Avoid fall thru to open folder.</li>
             <li>Handle row number correctly when sorting is in effect.</li>
         </ul>
         ]]></change-notes>
