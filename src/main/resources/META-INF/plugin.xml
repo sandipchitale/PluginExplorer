@@ -34,6 +34,7 @@
             <li>Go to dependees</li>
             <li>Show change notes.</li>
             <li>Show tags.</li>
+            <li>Dependencies and Dependees exploration dialog.</li>
         </ul>
         <h2>Known Issues</h2>
         <ul>
@@ -48,11 +49,11 @@
     <change-notes><![CDATA[
         <h2>New Features</h2>
         <ul>
-            <li>Dependencies and Dependees exploration dialog.</li>
+            <li>Show download count checkpoint timestamp.</li>
         </ul>
         <h2>Bug Fixes</h2>
         <ul>
-            <li>Avoid fall thru to open folder.</li>
+            <li>Avoid fall through to open folder.</li>
             <li>Handle row number correctly when sorting is in effect.</li>
         </ul>
         ]]></change-notes>

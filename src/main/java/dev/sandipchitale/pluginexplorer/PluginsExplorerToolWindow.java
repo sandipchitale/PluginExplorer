@@ -52,6 +52,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,6 +66,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 
 public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
+    private static final String PLUGINS_EXPLORER_DOWNLOAD_COUNTS_SINCE = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS_SINCE");
     private static final String PLUGINS_EXPLORER_DOWNLOAD_COUNTS = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS");
     private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
 
@@ -289,7 +294,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     if (pluginRecord != null) {
                         int downloads = pluginRecord.downloads();
                         Integer savedDownloads = savedDownloadsMap.getOrDefault(ideaPluginDescriptor.getPluginId().getIdString(), downloads);
-                        return String.format("Downloads: %d (last checkpoint: %d) %d change", downloads, savedDownloads, downloads - savedDownloads);
+                        return String.format("Downloads: %d (last checkpoint: %d) %d change %s", downloads, savedDownloads, downloads - savedDownloads, since());
                     }
                     return "Downloads";
                 } else if (column == PLUGIN_XML_COLUMN) {
@@ -794,22 +799,28 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         final ActionManager actionManager = ActionManager.getInstance();
         ToolWindowEx pluginsExplorer = (ToolWindowEx) ToolWindowManager.getInstance(project).getToolWindow("Plugins Explorer");
 
-        CheckpointDownloadsAction checkpointDownloads = (CheckpointDownloadsAction) actionManager.getAction("CheckpointDownloads");
-        checkpointDownloads.setPluginsExplorerToolWindow(this);
+        if (pluginsExplorer != null) {
+            CheckpointDownloadsAction checkpointDownloadsAction = (CheckpointDownloadsAction) actionManager.getAction("CheckpointDownloads");
+            checkpointDownloadsAction.setPluginsExplorerToolWindow(this);
+            checkpointDownloadsAction.getTemplatePresentation().setText("Checkpoint");
 
-        PluginsDependenciesExplorerAction pluginsDependenciesExplorerAction = (PluginsDependenciesExplorerAction) actionManager.getAction("PluginsDependenciesExplorer");
-        pluginsDependenciesExplorerAction.setPluginsExplorerToolWindow(this);
+            PluginsDependenciesExplorerAction pluginsDependenciesExplorerAction = (PluginsDependenciesExplorerAction) actionManager.getAction("PluginsDependenciesExplorer");
+            pluginsDependenciesExplorerAction.getTemplatePresentation().setText("Explore Plugin Dependencies and Dependees...");
+            pluginsDependenciesExplorerAction.setPluginsExplorerToolWindow(this);
 
-        GotoPluginsAction gotoPlugins = (GotoPluginsAction) actionManager.getAction("GotoPlugins");
-        gotoPlugins.setPluginsExplorerToolWindow(this);
+            GotoPluginsAction gotoPluginsAction = (GotoPluginsAction) actionManager.getAction("GotoPlugins");
+            gotoPluginsAction.getTemplatePresentation().setText("Go to Plugins Page in Settings...");
+            gotoPluginsAction.setPluginsExplorerToolWindow(this);
 
-        RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
-        refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
+            RefreshPluginsExplorerAction refreshPluginsExplorerAction = (RefreshPluginsExplorerAction) actionManager.getAction("RefreshPluginsExplorer");
+            refreshPluginsExplorerAction.getTemplatePresentation().setText("Refresh");
+            refreshPluginsExplorerAction.setPluginsExplorerToolWindow(this);
 
-        Objects.requireNonNull(pluginsExplorer).setTitleActions(List.of(checkpointDownloads,
-                pluginsDependenciesExplorerAction,
-                gotoPlugins,
-                refreshPluginsExplorerAction));
+            pluginsExplorer.setTitleActions(List.of(checkpointDownloadsAction,
+                    pluginsDependenciesExplorerAction,
+                    gotoPluginsAction,
+                    refreshPluginsExplorerAction));
+        }
 
         refresh();
     }
@@ -961,9 +972,25 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         }
     }
 
-    public void checkpointDownloads() {
+    void checkpointDownloads() {
         PropertiesComponent.getInstance().setValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, gson.toJson(currentDownloadsMap));
+
+        LocalDateTime localDateTime = Instant.ofEpochMilli(System.currentTimeMillis())
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a");
+        String formattedDate = localDateTime.format(formatter);
+        PropertiesComponent.getInstance().setValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS_SINCE, formattedDate);
+
         savedDownloadsMap.clear();
         savedDownloadsMap.putAll(currentDownloadsMap);
+    }
+
+    private static String since() {
+        if (PropertiesComponent.getInstance().isValueSet(PLUGINS_EXPLORER_DOWNLOAD_COUNTS_SINCE)) {
+            return String.format("since %s", PropertiesComponent.getInstance().getValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS_SINCE));
+        } else {
+            return "No Checkpoint Saved.";
+        }
     }
 }
