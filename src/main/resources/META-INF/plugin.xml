@@ -46,7 +46,7 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
 
-    <idea-version since-build="242"/>
+    <idea-version since-build="253"/>
 
     <change-notes><![CDATA[
         <h2>New Features</h2>

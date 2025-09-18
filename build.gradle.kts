@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.sandipchitale"
-version = "1.0.52"
+version = "1.0.53"
 
 repositories {
     mavenCentral()
@@ -20,7 +20,7 @@ dependencies {
         if (project.hasProperty("runIde_ideDir")) {
             local("${project.extra["runIde_ideDir"]}")
         } else {
-            intellijIdeaCommunity("2024.2")
+            intellijIdeaCommunity("253.17525.95")
         }
     }
 }
@@ -36,8 +36,8 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("242")
-        untilBuild.set("252.*")
+        sinceBuild.set("253")
+        untilBuild.set("253.*")
     }
 
     signPlugin {
