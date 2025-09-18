@@ -247,7 +247,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 if (column == SOURCECODE_URL_COLUMN) return AllIcons.Actions.PrettyPrint;
                 if (column == BUGTRACKER_URL_COLUMN) return AllIcons.Actions.StartDebugger;
                 if (column == ENABLED_COLUMN)
-                    return (ideaPluginDescriptor.isEnabled() ? AllIcons.Actions.Lightning : AllIcons.Actions.Suspend);
+                    return (PluginManagerCore.isDisabled(ideaPluginDescriptor.getPluginId()) ?  AllIcons.Actions.Suspend : AllIcons.Actions.Lightning);
                 if (column == CATEGORY_COLUMN) return ideaPluginDescriptor.getDisplayCategory();
                 if (column == VENDOR_COLUMN) return ideaPluginDescriptor.getVendor();
                 if (column == INFO_COLUMN) return AllIcons.General.Information;
@@ -310,7 +310,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                 } else if (column == BUGTRACKER_URL_COLUMN) {
                     return "Double-click to open bug tracker URI if available.";
                 } else if (column == ENABLED_COLUMN) {
-                    return ideaPluginDescriptor.isEnabled() ? "Enabled" : "Disabled";
+                    return PluginManagerCore.isDisabled(ideaPluginDescriptor.getPluginId()) ? "Disabled" : "Enabled";
                 } else if (column == CATEGORY_COLUMN) {
                     PluginRecord pluginRecord = pluginIdToPluginRecordMap.get(ideaPluginDescriptor.getPluginId());
                     if (pluginRecord != null) {
