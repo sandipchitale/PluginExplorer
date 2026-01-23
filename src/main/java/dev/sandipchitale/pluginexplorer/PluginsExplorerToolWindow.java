@@ -225,7 +225,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
             @Override
             public Object getValueAt(int row, int column) {
                 Vector<?> rowVector = dataVector.get(row);
-                IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) rowVector.get(0);
+                IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) rowVector.getFirst();
                 if (column == DESCRIPTOR_COLUMN) return ideaPluginDescriptor;
                 if (column == NAME_COLUMN) return ideaPluginDescriptor.getName();
                 if (column == ID_COLUMN) return ideaPluginDescriptor.getPluginId().getIdString();
@@ -240,7 +240,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     }
                     return 0;
                 }
-                ;
+
                 if (column == PLUGIN_XML_COLUMN) return AllIcons.FileTypes.Xml;
                 if (column == DEPENDENCIES_COLUMN) return AllIcons.Hierarchy.Supertypes;
                 if (column == DEPENDEES_COLUMN) return AllIcons.Hierarchy.Subtypes;
@@ -478,7 +478,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                                 SwingUtilities.invokeLater(() -> {
                                                     Notifications.Bus.notify(new Notification("pluginsExplorerNotificationGroup",
                                                             "Plugins explorer",
-                                                            String.format("Dependency %s of %smay not be visible. May have to clear the filter.",
+                                                            String.format("Dependency %s of %s may not be visible. May have to clear the filter.",
                                                                     ideaPluginDependency.getPluginId().getIdString(),
                                                                     pluginId.getIdString()),
                                                             NotificationType.INFORMATION));
@@ -836,8 +836,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     void refresh() {
         savedDownloadsMap.clear();
         String downloadsMapJson = PropertiesComponent.getInstance().getValue(PLUGINS_EXPLORER_DOWNLOAD_COUNTS, "{}");
-        ((Map<String, Integer>) gson.fromJson(downloadsMapJson, (new TypeToken<Map<String, Integer>>() {
-        }).getType())).forEach((Object key, Object value) -> {
+        ((Map<String, Integer>) gson.fromJson(downloadsMapJson, (
+                new TypeToken<Map<String, Integer>>() {}).getType()))
+                .forEach((Object key, Object value) -> {
             savedDownloadsMap.put(String.valueOf(key), Integer.valueOf(String.valueOf(value)));
         });
         if (savedDownloadsMap.isEmpty()) {
