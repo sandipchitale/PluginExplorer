@@ -693,9 +693,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel implements 
         column.setHeaderRenderer(new IconHeaderRenderer(AllIcons.FileTypes.Xml));
 
         column = this.pluginsTable.getColumnModel().getColumn(ID_COLUMN);
-//        column.setMinWidth(250);
-        column.setWidth(250);
-//        column.setMaxWidth(250);
+//        column.setMinWidth(300);
+        column.setWidth(300);
+//        column.setMaxWidth(300);
 
         column = this.pluginsTable.getColumnModel().getColumn(VERSION_COLUMN);
         column.setMinWidth(170);
@@ -748,9 +748,9 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel implements 
         column.setMaxWidth(40);
 
         column = this.pluginsTable.getColumnModel().getColumn(CATEGORY_COLUMN);
-        column.setMinWidth(200);
-        column.setWidth(200);
-        column.setMaxWidth(200);
+//        column.setMinWidth(250);
+        column.setWidth(250);
+//        column.setMaxWidth(250);
 
         column = this.pluginsTable.getColumnModel().getColumn(VENDOR_COLUMN);
         column.setMinWidth(180);
