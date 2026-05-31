@@ -1,6 +1,7 @@
 package dev.sandipchitale.pluginexplorer;
 
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
@@ -10,9 +11,10 @@ import org.jetbrains.annotations.NotNull;
 public class PluginsExplorerToolWindowFactory implements ToolWindowFactory {
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        PluginsExplorerToolWindow helmExplorerToolWindow = new PluginsExplorerToolWindow(project);
+        PluginsExplorerToolWindow pluginsExplorerToolWindow = new PluginsExplorerToolWindow(project);
+        Disposer.register(toolWindow.getDisposable(), pluginsExplorerToolWindow);
         ContentFactory contentFactory = ContentFactory.getInstance();
-        Content content = contentFactory.createContent(helmExplorerToolWindow.getContent(), "", false);
+        Content content = contentFactory.createContent(pluginsExplorerToolWindow.getContent(), "", false);
         toolWindow.getContentManager().addContent(content);
     }
 }

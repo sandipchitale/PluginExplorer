@@ -1,5 +1,6 @@
 package dev.sandipchitale.pluginexplorer;
 
+import com.intellij.ide.BrowserUtil;
 import com.intellij.ide.highlighter.XmlFileType;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
@@ -20,10 +21,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.awt.*;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 
 public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
@@ -48,15 +45,11 @@ public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
                             if (xmlAttributes != null) {
                                 Arrays.stream(xmlAttributes).forEach((XmlAttribute xmlAttribute) -> {
                                     if (xmlAttribute.getName().equals("qualifiedName")) {
-                                        try {
-                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", xmlAttribute.getValue())));
-                                        } catch (IOException | URISyntaxException ignore) {
-                                        }
+                                        BrowserUtil.browse(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", xmlAttribute.getValue()));
                                     } else if (xmlAttribute.getName().equals("name")) {
                                         IdeaPluginDescriptor ideaPluginDescriptor = (IdeaPluginDescriptor) ((JComponent) editor.getComponent().getParent()).getClientProperty(PluginsExplorerToolWindow.class.getSimpleName() + ".IdeaPluginDescriptor");
-                                        try {
-                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", ideaPluginDescriptor.getPluginId().getIdString() + "." + xmlAttribute.getValue())));
-                                        } catch (IOException | URISyntaxException ignore) {
+                                        if (ideaPluginDescriptor != null) {
+                                            BrowserUtil.browse(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", ideaPluginDescriptor.getPluginId().getIdString() + "." + xmlAttribute.getValue()));
                                         }
                                     }
                                 });
@@ -72,10 +65,7 @@ public class ShowInShowInIntelliJPlatformExplorerAction extends AnAction {
                                 if (extensionPsiElement != null) {
                                     if (PsiTreeUtil.isAncestor(extensionsPsiElement, extensionPsiElement, true)) {
                                         String extensionName = "com.intellij." + ((XmlTag) extensionPsiElement).getName();
-                                        try {
-                                            Desktop.getDesktop().browse(new URI(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", extensionName)));
-                                        } catch (IOException | URISyntaxException ignore) {
-                                        }
+                                        BrowserUtil.browse(String.format("https://plugins.jetbrains.com/intellij-platform-explorer/extensions?extensions=%s&pluginId=0", extensionName));
                                     }
                                 }
                             }

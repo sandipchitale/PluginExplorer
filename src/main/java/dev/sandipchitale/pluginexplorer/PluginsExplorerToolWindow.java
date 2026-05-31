@@ -3,6 +3,8 @@ package dev.sandipchitale.pluginexplorer;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.intellij.icons.AllIcons;
+import com.intellij.ide.BrowserUtil;
+import com.intellij.ide.actions.RevealFileAction;
 import com.intellij.ide.plugins.IdeaPluginDependency;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
@@ -10,7 +12,10 @@ import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.fileEditor.FileEditor;
@@ -29,6 +34,7 @@ import com.intellij.ui.SearchTextField;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.table.JBTable;
+import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.ui.JBFont;
 import com.intellij.util.ui.components.BorderLayoutPanel;
 import org.jetbrains.annotations.NotNull;
@@ -44,7 +50,6 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -52,6 +57,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -59,13 +65,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 
-public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
+public class PluginsExplorerToolWindow extends SimpleToolWindowPanel implements Disposable {
     private static final String PLUGINS_EXPLORER_DOWNLOAD_COUNTS_SINCE = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS_SINCE");
     private static final String PLUGINS_EXPLORER_DOWNLOAD_COUNTS = String.format("%s_%s", PluginsExplorerToolWindow.class.getName(), "DOWNLOAD_COUNTS");
     private static final Logger LOG = Logger.getInstance(PluginsExplorerToolWindow.class);
@@ -73,6 +81,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
     private static final Pattern PLUGIN_URL_PATTERN = Pattern.compile("^/plugin/(\\d+)-.+$");
 
     private final Project project;
+
+    // A single reusable client with a connect timeout instead of one client per request.
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(15))
+            .build();
+    // Bounded pool so a refresh can't fan out hundreds of concurrent requests at the Marketplace.
+    private final ExecutorService fetchExecutor =
+            AppExecutorUtil.createBoundedApplicationPoolExecutor("Plugins Explorer Marketplace Fetch", 4);
+    // Bumped on every refresh so in-flight tasks from a previous refresh become no-ops.
+    private final AtomicInteger refreshGeneration = new AtomicInteger();
 
     private final DefaultTableModel pluginsTableModel;
 
@@ -376,7 +394,6 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             column == INFO_COLUMN ||
                             column == OPEN_PATH_COLUMN ||
                             column == PATH_COLUMN) {
-                        Desktop desktop = Desktop.getDesktop();
                         int row = pluginsTable.rowAtPoint(p);
                         // In case sorting was in effect, convert the row index to real model index
                         row = pluginsTableRowSorter.convertRowIndexToModel(row);
@@ -397,11 +414,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 editorPane.addHyperlinkListener((HyperlinkEvent hyperlinkEvent) -> {
                                     if (hyperlinkEvent.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                                         URL url = hyperlinkEvent.getURL();
-                                        if (url.getProtocol().startsWith("http")) {
-                                            try {
-                                                Desktop.getDesktop().browse(url.toURI());
-                                            } catch (IOException | URISyntaxException ignore) {
-                                            }
+                                        if (url != null && url.getProtocol().startsWith("http")) {
+                                            BrowserUtil.browse(url);
                                         }
                                     }
                                 });
@@ -414,12 +428,7 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             }
                         } else if (column == OPEN_ON_MARKETPLACE_COLUMN) {
                             if (pluginRecord != null) {
-                                try {
-                                    URI uri = URI.create(
-                                            String.format("https://plugins.jetbrains.com%s", pluginRecord.url()));
-                                    desktop.browse(uri);
-                                } catch (IOException ignore) {
-                                }
+                                BrowserUtil.browse(String.format("https://plugins.jetbrains.com%s", pluginRecord.url()));
                             }
                         } else if (column == VERSION_COLUMN) {
                             String changeNotes = ideaPluginDescriptor.getChangeNotes();
@@ -432,11 +441,8 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                                 editorPane.addHyperlinkListener((HyperlinkEvent hyperlinkEvent) -> {
                                     if (hyperlinkEvent.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                                         URL url = hyperlinkEvent.getURL();
-                                        if (url.getProtocol().startsWith("http")) {
-                                            try {
-                                                Desktop.getDesktop().browse(url.toURI());
-                                            } catch (IOException | URISyntaxException ignore) {
-                                            }
+                                        if (url != null && url.getProtocol().startsWith("http")) {
+                                            BrowserUtil.browse(url);
                                         }
                                     }
                                 });
@@ -629,22 +635,16 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             }
                         } else if (column == BUGTRACKER_URL_COLUMN) {
                             if (pluginRecord != null) {
-                                try {
-                                    String bugtrackerURI = pluginRecord.bugtrackerUrl();
-                                    if (bugtrackerURI != null && !bugtrackerURI.isEmpty()) {
-                                        desktop.browse(URI.create(bugtrackerURI));
-                                    }
-                                } catch (IOException ignore) {
+                                String bugtrackerURI = pluginRecord.bugtrackerUrl();
+                                if (bugtrackerURI != null && !bugtrackerURI.isEmpty()) {
+                                    BrowserUtil.browse(bugtrackerURI);
                                 }
                             }
                         } else if (column == SOURCECODE_URL_COLUMN) {
                             if (pluginRecord != null) {
-                                try {
-                                    String sourceCodeUrl = pluginRecord.sourceCodeUrl();
-                                    if (sourceCodeUrl != null && !sourceCodeUrl.isEmpty()) {
-                                        desktop.browse(URI.create(sourceCodeUrl));
-                                    }
-                                } catch (IOException ignore) {
+                                String sourceCodeUrl = pluginRecord.sourceCodeUrl();
+                                if (sourceCodeUrl != null && !sourceCodeUrl.isEmpty()) {
+                                    BrowserUtil.browse(sourceCodeUrl);
                                 }
                             }
                         } else if (column == INFO_COLUMN) {
@@ -656,10 +656,14 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                             }
                         } else {
                             Path pluginPath = ideaPluginDescriptor.getPluginPath();
-                            if (pluginPath != null && pluginPath.toFile().exists()) {
-                                try {
-                                    desktop.open(pluginPath.toFile());
-                                } catch (IOException ignore) {
+                            if (pluginPath != null) {
+                                File pluginFile = pluginPath.toFile();
+                                if (pluginFile.exists()) {
+                                    if (pluginFile.isDirectory()) {
+                                        RevealFileAction.openDirectory(pluginFile);
+                                    } else {
+                                        RevealFileAction.openFile(pluginFile);
+                                    }
                                 }
                             }
                         }
@@ -848,113 +852,25 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
                     NotificationType.INFORMATION));
         }
 
-        pluginDependees.clear();
+        final int generation = refreshGeneration.incrementAndGet();
 
+        pluginDependees.clear();
         pluginIdToPluginRecordMap.clear();
         pluginsTableModel.setRowCount(0);
+
         IdeaPluginDescriptor[] ideaPluginDescriptors = PluginManagerCore.getPlugins();
         Arrays.sort(ideaPluginDescriptors, Comparator.comparing(IdeaPluginDescriptor::getName));
 
-        new Thread(() -> {
-            for (int i = 0; i < 2; i++) {
-                for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
-                    if (i == 0 && "JetBrains".equals(ideaPluginDescriptor.getVendor()))
-                        continue; // Skip JetBrains in first loop
-                    if (i == 1 && (!"JetBrains".equals(ideaPluginDescriptor.getVendor())))
-                        continue; // Process JetBrains in sec ond loop
-                    final int row = i;
-                    PluginId pluginId = ideaPluginDescriptor.getPluginId();
-                    String pluginName = ideaPluginDescriptor.getName();
-                    try {
-                        URI uri = URI.create(
-                                String.format("https://plugins.jetbrains.com/api/searchSuggest?isIDERequest=false&term=%s",
-                                        URLEncoder.encode(pluginName, StandardCharsets.UTF_8)));
-                        // Create an HTTP client
-                        HttpClient httpClient = HttpClient.newHttpClient();
-                        HttpRequest request = HttpRequest.newBuilder()
-                                .uri(uri)
-                                .GET()
-                                .build();
-
-                        // Send the request and get the response
-                        HttpResponse<String> response = null;
-                        response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-                        // Parse the JSON response using Gson
-
-                        PluginRecord[] pluginRecords = gson.fromJson(response.body(), PluginRecord[].class);
-
-                        for (PluginRecord pr : pluginRecords) {
-                            if (pluginName.equals(pr.value())) {
-                                pluginIdToPluginRecordMap.put(pluginId, pr);
-                                String url = pr.url();
-                                Matcher matcher = PLUGIN_URL_PATTERN.matcher(url);
-                                if (matcher.matches()) {
-                                    new Thread(() -> {
-                                        // https://plugins.jetbrains.com/api/plugins/22006
-                                        URI pluginUri = URI.create(String.format("https://plugins.jetbrains.com/api/plugins/%s", matcher.group(1)));
-                                        // Create an HTTP client
-                                        HttpRequest pluginRequest = HttpRequest.newBuilder()
-                                                .uri(pluginUri)
-                                                .GET()
-                                                .build();
-
-                                        // Send the request and get the response
-                                        try {
-                                            HttpResponse<String> pluginResponse = httpClient.send(pluginRequest, HttpResponse.BodyHandlers.ofString());
-                                            String body = pluginResponse.body();
-                                            JsonObject jsonObject = gson.fromJson(body, JsonObject.class);
-                                            if (jsonObject != null) {
-                                                JsonObject urls = jsonObject.getAsJsonObject("urls");
-                                                int downloads = jsonObject.getAsJsonPrimitive("downloads").getAsInt();
-                                                String sourceCodeUrl = urls.getAsJsonPrimitive("sourceCodeUrl").getAsString();
-                                                String bugtrackerUrl = urls.getAsJsonPrimitive("bugtrackerUrl").getAsString();
-                                                JsonPrimitive iconObject = jsonObject.getAsJsonPrimitive("icon");
-                                                String icon = iconObject == null ? null : iconObject.getAsString();
-                                                List<String> tags = new ArrayList<>();
-                                                JsonArray tagsJsonArray = jsonObject.getAsJsonArray("tags");
-                                                if (tagsJsonArray != null) {
-                                                    tagsJsonArray.forEach((JsonElement jsonElement) -> {
-                                                        tags.add(((JsonObject) jsonElement).getAsJsonPrimitive("name").getAsString());
-                                                    });
-                                                }
-                                                PluginRecord pluginRecord = new PluginRecord(pr.value(),
-                                                        pr.url(),
-                                                        pr.organization,
-                                                        pr.target,
-                                                        sourceCodeUrl,
-                                                        bugtrackerUrl,
-                                                        downloads,
-                                                        icon,
-                                                        gson.toJson(jsonObject),
-                                                        tags
-                                                );
-                                                currentDownloadsMap.put(pluginId.getIdString(), downloads);
-                                                pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
-                                                pluginsTableModel.fireTableRowsUpdated(row, row);
-                                            }
-                                        } catch (IOException | InterruptedException ignore) {
-                                        }
-                                    }, "Plugin Node details").start();
-
-                                }
-                                break;
-                            }
-                        }
-                    } catch (IOException | InterruptedException ignore) {
-                    }
-                }
-            }
-        }, "Plugin Nodes").start();
-
+        // Build the dependees index and populate the rows up front (on the EDT) so that
+        // findModelRow(...) can resolve a plugin to its row when async updates arrive.
         for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
-            List<IdeaPluginDependency> ideaPluginDependencies = ideaPluginDescriptor.getDependencies();
-            for (IdeaPluginDependency ideaPluginDependency : ideaPluginDependencies) {
+            for (IdeaPluginDependency ideaPluginDependency : ideaPluginDescriptor.getDependencies()) {
                 pluginDependees.computeIfAbsent(ideaPluginDependency.getPluginId(),
-                        (PluginId pluginId) -> new HashSet<>()).add(new PluginIdOptional(ideaPluginDescriptor.getPluginId(), ideaPluginDependency.isOptional()));
+                                (PluginId pluginId) -> new HashSet<>())
+                        .add(new PluginIdOptional(ideaPluginDescriptor.getPluginId(), ideaPluginDependency.isOptional()));
             }
 
-            String idString = ideaPluginDescriptor.getPluginId().getIdString();
-            if (!idString.isEmpty()) {
+            if (!ideaPluginDescriptor.getPluginId().getIdString().isEmpty()) {
                 pluginsTableModel.addRow(new IdeaPluginDescriptor[]{ideaPluginDescriptor});
             }
         }
@@ -962,6 +878,145 @@ public class PluginsExplorerToolWindow extends SimpleToolWindowPanel {
         List<String> pluginNamesList = Arrays.stream(ideaPluginDescriptors).map(IdeaPluginDescriptor::getName).toList();
         pluginsSearchTextField.setHistory(pluginNamesList);
         pluginsSearchTextField.setHistorySize(pluginNamesList.size());
+
+        // Fetch Marketplace metadata off the EDT via a bounded pool. Non-JetBrains plugins
+        // are queued first so third-party info shows up before the bundled plugins.
+        for (int pass = 0; pass < 2; pass++) {
+            boolean jetBrainsPass = pass == 1;
+            for (IdeaPluginDescriptor ideaPluginDescriptor : ideaPluginDescriptors) {
+                boolean isJetBrains = "JetBrains".equals(ideaPluginDescriptor.getVendor());
+                if (isJetBrains != jetBrainsPass || ideaPluginDescriptor.getPluginId().getIdString().isEmpty()) {
+                    continue;
+                }
+                fetchExecutor.execute(() -> fetchPluginRecord(ideaPluginDescriptor, generation));
+            }
+        }
+    }
+
+    private void fetchPluginRecord(@NotNull IdeaPluginDescriptor descriptor, int generation) {
+        if (generation != refreshGeneration.get()) {
+            return; // A newer refresh superseded this task.
+        }
+        PluginId pluginId = descriptor.getPluginId();
+        String pluginName = descriptor.getName();
+        try {
+            URI uri = URI.create(
+                    String.format("https://plugins.jetbrains.com/api/searchSuggest?isIDERequest=false&term=%s",
+                            URLEncoder.encode(pluginName, StandardCharsets.UTF_8)));
+            HttpRequest request = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofSeconds(20))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            PluginRecord[] pluginRecords = gson.fromJson(response.body(), PluginRecord[].class);
+            if (pluginRecords == null) {
+                return;
+            }
+            for (PluginRecord pr : pluginRecords) {
+                if (pluginName.equals(pr.value())) {
+                    pluginIdToPluginRecordMap.put(pluginId, pr);
+                    scheduleRowUpdate(pluginId, generation);
+                    Matcher matcher = PLUGIN_URL_PATTERN.matcher(pr.url());
+                    if (matcher.matches()) {
+                        fetchPluginDetails(descriptor, pr, matcher.group(1), generation);
+                    }
+                    break;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (IOException | RuntimeException e) {
+            LOG.warn("Failed to query Marketplace for plugin '" + pluginName + "'", e);
+        }
+    }
+
+    private void fetchPluginDetails(@NotNull IdeaPluginDescriptor descriptor,
+                                    @NotNull PluginRecord searchRecord,
+                                    @NotNull String marketplaceId,
+                                    int generation) {
+        if (generation != refreshGeneration.get()) {
+            return;
+        }
+        PluginId pluginId = descriptor.getPluginId();
+        try {
+            URI pluginUri = URI.create(String.format("https://plugins.jetbrains.com/api/plugins/%s", marketplaceId));
+            HttpRequest pluginRequest = HttpRequest.newBuilder(pluginUri)
+                    .timeout(Duration.ofSeconds(20))
+                    .GET()
+                    .build();
+            HttpResponse<String> pluginResponse = httpClient.send(pluginRequest, HttpResponse.BodyHandlers.ofString());
+            JsonObject jsonObject = gson.fromJson(pluginResponse.body(), JsonObject.class);
+            if (jsonObject != null) {
+                JsonObject urls = jsonObject.getAsJsonObject("urls");
+                int downloads = optInt(jsonObject, "downloads");
+                List<String> tags = new ArrayList<>();
+                JsonArray tagsJsonArray = jsonObject.getAsJsonArray("tags");
+                if (tagsJsonArray != null) {
+                    tagsJsonArray.forEach((JsonElement jsonElement) -> tags.add(optString(jsonElement.getAsJsonObject(), "name")));
+                }
+                PluginRecord pluginRecord = new PluginRecord(searchRecord.value(),
+                        searchRecord.url(),
+                        searchRecord.organization(),
+                        searchRecord.target(),
+                        optString(urls, "sourceCodeUrl"),
+                        optString(urls, "bugtrackerUrl"),
+                        downloads,
+                        optString(jsonObject, "icon"),
+                        gson.toJson(jsonObject),
+                        tags);
+                currentDownloadsMap.put(pluginId.getIdString(), downloads);
+                pluginIdToPluginRecordMap.put(pluginId, pluginRecord);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (IOException | RuntimeException e) {
+            LOG.warn("Failed to fetch Marketplace details for plugin '" + descriptor.getName() + "'", e);
+        }
+        scheduleRowUpdate(pluginId, generation);
+    }
+
+    private void scheduleRowUpdate(@NotNull PluginId pluginId, int generation) {
+        ApplicationManager.getApplication().invokeLater(() -> {
+            if (project.isDisposed() || generation != refreshGeneration.get()) {
+                return;
+            }
+            int modelRow = findModelRow(pluginId);
+            if (modelRow >= 0) {
+                pluginsTableModel.fireTableRowsUpdated(modelRow, modelRow);
+            }
+        }, ModalityState.any());
+    }
+
+    private int findModelRow(@NotNull PluginId pluginId) {
+        for (int row = 0; row < pluginsTableModel.getRowCount(); row++) {
+            IdeaPluginDescriptor descriptor = (IdeaPluginDescriptor) pluginsTableModel.getValueAt(row, DESCRIPTOR_COLUMN);
+            if (descriptor.getPluginId().equals(pluginId)) {
+                return row;
+            }
+        }
+        return -1;
+    }
+
+    private static String optString(JsonObject object, String key) {
+        if (object == null) {
+            return null;
+        }
+        JsonElement element = object.get(key);
+        return (element == null || element.isJsonNull()) ? null : element.getAsString();
+    }
+
+    private static int optInt(JsonObject object, String key) {
+        if (object == null) {
+            return 0;
+        }
+        JsonElement element = object.get(key);
+        return (element == null || element.isJsonNull()) ? 0 : element.getAsInt();
+    }
+
+    @Override
+    public void dispose() {
+        refreshGeneration.incrementAndGet();
+        fetchExecutor.shutdownNow();
     }
 
     private void search(SearchTextField searchTextField, TableRowSorter<DefaultTableModel> tableRowSorter) {
