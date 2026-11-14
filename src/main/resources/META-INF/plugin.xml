@@ -47,6 +47,10 @@
     <depends>com.intellij.modules.platform</depends>
 
     <change-notes><![CDATA[
+        <h2>1.0.62</h2>
+        <ul>
+            <li>Compatible with 2026.3 (build 263).</li>
+        </ul>
         <h2>New Features</h2>
         <ul>
             <li>Show download count checkpoint timestamp.</li>
